@@ -2090,16 +2090,25 @@ function saveAll(){
   if(_saveTimer) clearTimeout(_saveTimer);
   _saveTimer = setTimeout(_doSave, 300);
 }
+function sanitizeFirebaseKey(k){
+  // Firebase Realtime Database keys cannot contain . # $ / [ ]
+  return String(k).replace(/[.#$\/\[\]]/g, '-');
+}
 function _doSave(){
   var APP_VERSION = 'jun11_2026_v1';
   try {
     if(window.db){
+      // Sanitize clientColors keys (client names may contain "/" etc.)
+      var safeClientColors = {};
+      Object.keys(clientColors).forEach(function(k){
+        safeClientColors[sanitizeFirebaseKey(k)] = clientColors[k];
+      });
       window.db.ref('rgt/version').set(APP_VERSION);
       window.db.ref('rgt/trips').set(trips);
       window.db.ref('rgt/units').set(units);
       window.db.ref('rgt/bitacora').set(bitacora.slice(0,200));
       window.db.ref('rgt/tripHistory').set(tripHistory.slice(0,500));
-      window.db.ref('rgt/clientColors').set(clientColors);
+      window.db.ref('rgt/clientColors').set(safeClientColors);
       window.db.ref('rgt/standaloneClientes').set(standaloneClientes);
     }
   } catch(e){ console.warn('saveAll error', e); }
