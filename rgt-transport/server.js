@@ -8,19 +8,20 @@ const API = 'https://api.mx-1.ontracking.com.mx';
 const GPS_USER = 'rgt.integracion';
 const GPS_PASS = '123456';
 
-app.use(express.static('.'));
+// Serve static files from current directory
+app.use(express.static(path.join(__dirname)));
 
 app.get('/api/gps', async (req, res) => {
   const action = req.query.action || 'vehiculos';
   try {
     const csrfRes = await fetch(`${PORTAL}/api/auth/csrf`, { headers: {'Content-Type':'application/json'} });
     const csrfData = await csrfRes.json();
-    const csrfCookies = csrfRes.headers.raw()['set-cookie'] || [];
+    const csrfCookies = csrfRes.headers.getSetCookie ? csrfRes.headers.getSetCookie() : [];
     const cookies1 = csrfCookies.map(c => c.split(';')[0]).join('; ');
 
     const loginBody = new URLSearchParams({ username:GPS_USER, password:GPS_PASS, csrfToken:csrfData.csrfToken||'', callbackUrl:`${PORTAL}/rastreo`, redirect:'false' });
     const loginRes = await fetch(`${PORTAL}/api/auth/callback/credentials`, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','Cookie':cookies1}, body:loginBody.toString(), redirect:'manual' });
-    const loginCookies = loginRes.headers.raw()['set-cookie'] || [];
+    const loginCookies = loginRes.headers.getSetCookie ? loginRes.headers.getSetCookie() : [];
     const cookies2 = [...csrfCookies, ...loginCookies].map(c => c.split(';')[0]).join('; ');
 
     const sessionRes = await fetch(`${PORTAL}/api/auth/session`, { headers:{'Cookie':cookies2} });
@@ -37,6 +38,5 @@ app.get('/api/gps', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`RGT corriendo en puerto ${PORT}`));
-
