@@ -235,6 +235,7 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 
+
 <div id="screen-login">
   <div class="login-card">
     <div class="login-left">
@@ -1132,7 +1133,7 @@ function getRepDateRange(){
 
 var gpsToken = null;
 var gpsInterval = null;
-var GPS_PROXY = '/.netlify/functions/gps';
+var GPS_PROXY = '/api/gps';
 
 function gpsLogin(){
   gpsToken = 'proxy';
@@ -3186,21 +3187,6 @@ function crearCliente(){
 // Color strips now handled inside renderBoard
 
 </script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyBAdqacdb7BU15wGsR6HQvnYK6lQ96WY_I",
-      authDomain: "rgt-transport.firebaseapp.com",
-      databaseURL: "https://rgt-transport-default-rtdb.firebaseio.com",
-      projectId: "rgt-transport",
-      storageBucket: "rgt-transport.firebasestorage.app",
-      messagingSenderId: "323568512745",
-      appId: "1:323568512745:web:239a2afa4be5a6f480ca78"
-    };
-    try {
-      firebase.initializeApp(firebaseConfig);
-      window.db = firebase.database();
-    } catch(e) { console.warn('Firebase init error:', e); window.db = null; }
-  </script>
+
 </body>
 </html>
