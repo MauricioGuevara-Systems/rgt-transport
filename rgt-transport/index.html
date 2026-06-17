@@ -2242,6 +2242,18 @@ function sanitizeFirebaseKey(k){
   // Firebase Realtime Database keys cannot contain . # $ / [ ]
   return String(k).replace(/[.#$\/\[\]]/g, '-');
 }
+function sanitizeUndefined(obj){
+  // Firebase rejects any 'undefined' value anywhere in the tree (set fails entirely).
+  // Recursively replace undefined with null so a single missing field never blocks the whole save.
+  if(obj === undefined) return null;
+  if(obj === null || typeof obj !== 'object') return obj;
+  if(Array.isArray(obj)) return obj.map(sanitizeUndefined);
+  var out = {};
+  Object.keys(obj).forEach(function(k){
+    out[k] = sanitizeUndefined(obj[k]);
+  });
+  return out;
+}
 function _doSave(){
   var APP_VERSION = 'jun11_2026_v1';
   try {
@@ -2252,10 +2264,10 @@ function _doSave(){
         safeClientColors[sanitizeFirebaseKey(k)] = clientColors[k];
       });
       window.db.ref('rgt/version').set(APP_VERSION);
-      window.db.ref('rgt/trips').set(trips);
-      window.db.ref('rgt/units').set(units);
-      window.db.ref('rgt/bitacora').set(bitacora.slice(0,200));
-      window.db.ref('rgt/tripHistory').set(tripHistory.slice(0,500));
+      window.db.ref('rgt/trips').set(sanitizeUndefined(trips));
+      window.db.ref('rgt/units').set(sanitizeUndefined(units));
+      window.db.ref('rgt/bitacora').set(sanitizeUndefined(bitacora.slice(0,200)));
+      window.db.ref('rgt/tripHistory').set(sanitizeUndefined(tripHistory.slice(0,500)));
       window.db.ref('rgt/clientColors').set(safeClientColors);
       window.db.ref('rgt/standaloneClientes').set(standaloneClientes);
     }
