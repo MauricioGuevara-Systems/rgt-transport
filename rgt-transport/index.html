@@ -365,6 +365,14 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
               <label>Observaciones de mantenimiento</label>
               <textarea id="ed-mant-obs" rows="3" placeholder="Ej. Cambio de llantas, falla motor..." style="width:100%;padding:8px 10px;border:1.5px solid #e74c3c;border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#fff0f0;resize:vertical;"></textarea>
             </div>
+            <div class="field"><label>Tipo de viaje</label>
+              <select id="ed-tipo-viaje" onchange="onEdTipoViajeChange()" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;">
+                <option value="directo">Directo</option>
+                <option value="repartos">Repartos (misma ciudad)</option>
+                <option value="ciudades">Varias ciudades</option>
+                <option value="vacio">Sin carga</option>
+              </select>
+            </div>
             <div class="field"><label>Cliente</label>
               <input id="ed-cliente" list="ed-cliente-list" placeholder="Escribe o selecciona cliente..." autocomplete="off" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
               <datalist id="ed-cliente-list"></datalist>
@@ -389,6 +397,13 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
             </div>
             <div class="field"><label>Carta Porte (folio)</label><input id="ed-cartaporte" placeholder="Ej. CP 22091" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/></div>
             <div class="field"><label>Costo ($)</label><input id="ed-costo" type="number" placeholder="Ej. 38325" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/></div>
+            <div class="field" id="ed-paradas-wrap" style="display:none;background:#f8f9fb;border-radius:6px;padding:10px;border:1px solid var(--border);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-size:11px;font-weight:700;color:var(--navy);letter-spacing:1px;" id="ed-paradas-lbl">PARADAS</div>
+                <button type="button" onclick="addParadaEd()" style="background:var(--blue);color:#fff;border:none;padding:5px 12px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Agregar</button>
+              </div>
+              <div id="ed-paradas-list"></div>
+            </div>
             <div style="display:flex;gap:10px;margin-top:4px;">
               <button class="btn-primary" onclick="guardarCambios()" style="flex:1;">GUARDAR CAMBIOS</button>
               <button onclick="borrarViaje()" style="flex:0 0 auto;background:none;border:2px solid #e74c3c;color:#e74c3c;padding:10px 16px;border-radius:5px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;">🗑 BORRAR VIAJE</button>
@@ -886,44 +901,6 @@ function populateUnidadSelect(){
   }
 }
 
-function onNvNumInput(val){
-  // Auto-fill operator when unit number matches
-  var u = units.find(function(x){ return x.id === val; });
-  if(u){
-    var opEl = document.getElementById('nv-operador');
-    if(opEl) opEl.value = u.operador||'';
-  }
-}
-
-function toggleNvNumInput(sel){ /* replaced by datalist */ }
-
-function toggleNvClienteInput(sel){
-  const inp = document.getElementById('nv-cliente');
-  if(!inp) return;
-  if(sel.value === '__nuevo__'){
-    inp.style.display = '';
-    inp.focus();
-  } else {
-    inp.style.display = 'none';
-    inp.value = '';
-  }
-}
-
-function toggleCvClienteInput(sel){
-  const inp = document.getElementById('cv-cliente');
-  if(!inp) return;
-  if(sel.value === '__nuevo__'){
-    inp.style.display = '';
-    inp.focus();
-  } else {
-    inp.style.display = 'none';
-    inp.value = '';
-  }
-}
-
-
-function getOperadoresOpts(selected){ return ''; } // replaced by datalist
-
 function populateOperadorDatalist(){
   var dlOpts = OPERADORES.map(function(o){
     return '<option value="'+o.nombre+'">#'+o.id+' — '+o.nombre+'</option>';
@@ -1069,6 +1046,17 @@ function getProgrammedTrips(unitId){
     var cargaDate = t.citaCarga ? t.citaCarga.slice(0,10) : t.fecha;
     return cargaDate > todayStr && t.status !== 'finalizado';
   });
+}
+
+function getNextTrip(unitId){
+  var prog = getProgrammedTrips(unitId);
+  if(!prog.length) return null;
+  prog.sort(function(a,b){
+    var da = a.citaCarga || a.fecha || '';
+    var db = b.citaCarga || b.fecha || '';
+    return da < db ? -1 : (da > db ? 1 : 0);
+  });
+  return prog[0];
 }
 
 function finalizarViaje(tripId){
@@ -1528,98 +1516,6 @@ function closeUnitModal() {
 document.addEventListener('keydown', function(e){
   if(e.key === 'Escape') closeUnitModal();
 });
-
-// ── PARADAS / REPARTOS ──
-let nvParadas = [];
-
-function toggleTipoViaje(){
-  const tipo = document.getElementById('nv-tipo-viaje').value;
-  const sec = document.getElementById('nv-paradas-section');
-  const lbl = document.getElementById('nv-paradas-label');
-  const etaField = document.getElementById('nv-eta') ? document.getElementById('nv-eta').parentElement : null;
-  const destinoField = document.getElementById('nv-destino') ? document.getElementById('nv-destino').parentElement : null;
-  // Repartos: solo marcar tipo, sin lista de clientes
-  if(tipo === 'directo' || tipo === 'repartos'){
-    sec.style.display = 'none';
-    nvParadas = [];
-    if(etaField) etaField.style.display = tipo==='directo' ? '' : 'none';
-    if(destinoField) destinoField.style.display = '';
-  } else {
-    // paradas: mostrar lista de destinos
-    sec.style.display = '';
-    if(lbl) lbl.textContent = 'Destinos';
-    if(etaField) etaField.style.display = 'none';
-    if(destinoField) destinoField.style.display = 'none';
-    if(nvParadas.length===0) agregarParada();
-  }
-}
-
-function agregarParada(){
-  nvParadas.push({ciudad:'', cliente:'', eta:''});
-  renderParadas();
-}
-
-function renderParadas(){
-  const tipo = document.getElementById('nv-tipo-viaje') ? document.getElementById('nv-tipo-viaje').value : 'paradas';
-  const list = document.getElementById('nv-paradas-list');
-  if(!list) return;
-  list.innerHTML = nvParadas.map(function(p, i){
-    if(tipo === 'paradas'){
-      // Solo destino — sin hora
-      return '<div style="display:grid;grid-template-columns:1fr auto;gap:6px;align-items:end;background:#f0f4ff;border-radius:6px;padding:8px;border:1px solid #d0dcff;">'+
-        '<div><div style="font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:3px;">DESTINO '+(i+1)+'</div>'+
-        '<input value="'+(p.ciudad||'')+'" oninput="nvParadas['+i+'].ciudad=this.value" placeholder="Ej. CDMX, Guadalajara..." style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;box-sizing:border-box;"/></div>'+
-        '<button type="button" onclick="quitarParada('+i+')" style="background:none;border:1px solid #ddd;color:#aaa;border-radius:4px;padding:7px 9px;cursor:pointer;font-size:12px;margin-bottom:1px;">✕</button>'+
-        '</div>';
-    } else {
-      // Solo cliente — sin hora
-      return '<div style="display:grid;grid-template-columns:1fr auto;gap:6px;align-items:end;background:#f0f4ff;border-radius:6px;padding:8px;border:1px solid #d0dcff;">'+
-        '<div><div style="font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:3px;">REPARTO '+(i+1)+'</div>'+
-        '<input value="'+(p.cliente||'')+'" oninput="nvParadas['+i+'].cliente=this.value" placeholder="Nombre del cliente..." style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;box-sizing:border-box;"/></div>'+
-        '<button type="button" onclick="quitarParada('+i+')" style="background:none;border:1px solid #ddd;color:#aaa;border-radius:4px;padding:7px 9px;cursor:pointer;font-size:12px;margin-bottom:1px;">✕</button>'+
-        '</div>';
-    }
-  }).join('');
-}
-
-function quitarParada(i){
-  nvParadas.splice(i,1);
-  renderParadas();
-}
-
-
-function registrarMantenimiento(){
-  var numEl = document.getElementById('nv-num');
-  var num = numEl ? numEl.value.trim() : '';
-  if(!num){ alert('Selecciona o escribe el número de unidad'); return; }
-  var obsEl = document.getElementById('nv-nota');
-  var obs = obsEl ? obsEl.value.trim() : '';
-  if(!obs){ obs = prompt('Motivo de mantenimiento (ej. cambio de llantas, falla motor...):') || ''; }
-  var u = units.find(function(x){ return x.id === num; });
-  if(!u){ alert('Unidad ' + num + ' no encontrada'); return; }
-  u.status = 'mant';
-  u.etapa = 'mant';
-  u.mantObs = obs;
-  u.cliente = '';
-  u.destino = '';
-  u.eta = '';
-  u.salida = '';
-  var nowMant = new Date().toLocaleTimeString('es-MX',{timeZone:'America/Monterrey',hour:'2-digit',minute:'2-digit',hour12:false});
-  bitacora.unshift({id:u.id, de:'ontime', a:'mant', eta:'', nota:'Mantenimiento: '+obs, hora:nowMant, user:currentUser?currentUser.name:'Sistema'});
-  saveAll();
-  renderBoard(); renderStats(); renderTicker(); renderDisponibles();
-  var tblBtnM = document.querySelector('[onclick*=\'tablero\']');
-  if(tblBtnM) showView('tablero', tblBtnM);
-  var t = document.getElementById('toast-nueva');
-  if(t){ t.textContent = '✓ Unidad ' + num + ' en mantenimiento'; t.style.display='block'; setTimeout(function(){ t.style.display='none'; t.textContent='✓ Salida registrada'; }, 2500); }
-  if(numEl) numEl.value = '';
-  if(obsEl) obsEl.value = '';
-}
-function toggleNvTemp() {
-  // Tipo de carga always shown — any truck can carry any type
-  const f = document.getElementById('nv-temp-field');
-  if(f) f.style.display = '';
-}
 
 const USERS = {
   'juan':       {pass:'juan1234',       name:'Juan',         role:'Acceso Completo', nivel:'admin'},
@@ -2488,6 +2384,9 @@ function renderBoard(){
       }
     } else if(!at && u.status!=='mant'){
       u.cliente=''; u.destino=''; u.eta=''; u.activeTripId=null; u.status='ontime';
+      u.nextTrip = getNextTrip(u.id);
+    } else {
+      u.nextTrip = null;
     }
 
     // ETA display
@@ -2513,15 +2412,30 @@ function renderBoard(){
       var pend = at.paradas.filter(function(p){return !p.completada;}).length;
       rutaTo = '⊕ '+pend+' entrega'+(pend!==1?'s':'');
     }
+    var nextTripHtml = '';
+    if(!at && u.nextTrip){
+      var nt = u.nextTrip;
+      var ntFechaRaw = nt.citaCarga ? nt.citaCarga.slice(0,10) : nt.fecha;
+      var ntFecha = ntFechaRaw ? new Date(ntFechaRaw+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'short'}) : '';
+      var ntDestino = nt.sinCarga ? (nt.sincargaTipo||'Sin carga') : (nt.destino||'—');
+      rutaTo = '<span style="color:#94a3b8;">→ '+ntDestino+'</span>';
+      nextTripHtml = '<div style="font-size:9px;color:#94a3b8;font-style:italic;margin-top:2px;">Próximo: '+ntFecha+'</div>';
+    }
 
     // Status badge
     var sc = SC[u.status]||'s-ontime';
     var sl = SL[u.status]||u.status;
 
     var ccolor = getClientColor(u.cliente);
-    var clienteHtml = at&&at.sinCarga
-      ? '<span style="color:#94a3b8;font-style:italic;">'+(at.sincargaTipo||'Sin carga')+'</span>'
-      : '<span style="color:'+ccolor+';font-weight:700;">'+(u.cliente||'—')+'</span>';
+    var clienteHtml;
+    if(at && at.sinCarga){
+      clienteHtml = '<span style="color:#94a3b8;font-style:italic;">'+(at.sincargaTipo||'Sin carga')+'</span>';
+    } else if(!at && u.nextTrip){
+      var ntCliente = u.nextTrip.sinCarga ? (u.nextTrip.sincargaTipo||'Sin carga') : (u.nextTrip.cliente||'—');
+      clienteHtml = '<span style="color:'+getClientColor(u.nextTrip.cliente)+';font-weight:600;opacity:0.6;font-style:italic;">'+ntCliente+'</span>';
+    } else {
+      clienteHtml = '<span style="color:'+ccolor+';font-weight:700;">'+(u.cliente||'—')+'</span>';
+    }
 
     var bCol = (typeof clientColors!=='undefined'&&clientColors[u.cliente]) ? '4px solid '+clientColors[u.cliente] : '4px solid transparent';
     return '<tr style="cursor:pointer;border-bottom:1px solid var(--border);border-left:'+bCol+';" onclick="openUnitModal('+units.indexOf(u)+')">'
@@ -2533,7 +2447,7 @@ function renderBoard(){
       +'<div style="font-size:10px;color:var(--muted);">'+(u.operador||'Sin operador')+velTag+'</div></td>'
       +'<td><span class="badge '+sc+'">'+sl+'</span></td>'
       +'<td><div style="font-size:11px;color:var(--muted);">'+(u.origen||'')+'</div>'
-        +'<div style="font-size:12px;font-weight:600;">'+rutaTo+'</div></td>'
+        +'<div style="font-size:12px;font-weight:600;">'+rutaTo+'</div>'+nextTripHtml+'</td>'
       +'<td>'+clienteHtml+'</td>'
       +'<td>'+etaHtml+'</td>'
       +'<td>'+etapaCell(u)+'</td>'
@@ -2617,48 +2531,100 @@ function renderUnitSelectList(){
   `).join('');
 }
 
+function onEdTipoViajeChange(){
+  var tipo = (document.getElementById('ed-tipo-viaje')||{}).value || 'directo';
+  var isSinCarga = tipo==='vacio';
+  var isMulti = tipo==='repartos'||tipo==='ciudades';
+  var elCli = document.getElementById('ed-cliente');
+  var elDes = document.getElementById('ed-destino');
+  var elEta = document.getElementById('ed-eta');
+  var elParadasWrap = document.getElementById('ed-paradas-wrap');
+  var elParadasLbl = document.getElementById('ed-paradas-lbl');
+  if(elCli) elCli.parentElement.style.display = isSinCarga ? 'none' : '';
+  if(elDes) elDes.parentElement.style.display = isMulti ? 'none' : '';
+  if(elEta) elEta.parentElement.style.display = isMulti ? 'none' : '';
+  if(elParadasWrap) elParadasWrap.style.display = isMulti ? '' : 'none';
+  if(elParadasLbl) elParadasLbl.textContent = tipo==='repartos' ? 'ENTREGAS' : 'CIUDADES / PARADAS';
+}
+
+function addParadaEd(paradaData){
+  var list = document.getElementById('ed-paradas-list');
+  if(!list) return;
+  var tipo = (document.getElementById('ed-tipo-viaje')||{}).value || 'ciudades';
+  var s = "padding:6px 8px;border:1.5px solid var(--border);border-radius:4px;font-size:12px;outline:none;background:#fff;width:100%;";
+  var div = document.createElement('div');
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-bottom:6px;align-items:end;';
+  var lbl = tipo==='repartos' ? 'TIENDA / LUGAR' : 'CIUDAD';
+  var ph  = tipo==='repartos' ? 'Ej. Walmart Norte' : 'Ej. Saltillo';
+  var pDest = paradaData ? (paradaData.destino||'') : '';
+  var pCita = paradaData ? (paradaData.citaDescarga||'') : '';
+  div.innerHTML = '<div><div style="font-size:10px;color:var(--muted);margin-bottom:3px;">'+lbl+'</div>'+
+    '<input class="ed-parada-dest" value="'+pDest.replace(/"/g,'&quot;')+'" placeholder="'+ph+'" style="'+s+'"/></div>'+
+    '<div><div style="font-size:10px;color:var(--muted);margin-bottom:3px;">CITA DESCARGA</div>'+
+    '<input class="ed-parada-cita" type="datetime-local" value="'+pCita+'" style="'+s+'"/></div>'+
+    '<button type="button" onclick="this.parentElement.remove()" style="background:none;border:1px solid #e74c3c;color:#e74c3c;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:11px;">x</button>';
+  list.appendChild(div);
+}
+
 function openEdit(idx){
   editIdx = idx;
   const u = units[idx];
+  const activeTrip = getActiveTrip(u.id);
   document.getElementById('usel-panel').style.display='none';
   document.getElementById('edit-form').classList.add('visible');
-  document.getElementById('edit-title').textContent = unitLabel(u) + ' — ' + u.cliente;
+  document.getElementById('edit-title').textContent = unitLabel(u) + ' — ' + (activeTrip ? (activeTrip.sinCarga ? (activeTrip.sincargaTipo||'Sin carga') : activeTrip.cliente) : u.cliente);
   document.getElementById('ed-status').value = u.status;
   const etapaEl = document.getElementById('ed-etapa');
-  if(etapaEl) etapaEl.value = u.etapa || 'cargando';
+  if(etapaEl) etapaEl.value = (activeTrip ? activeTrip.etapa : u.etapa) || 'cargando';
   const mantObsEl = document.getElementById('ed-mant-obs');
   if(mantObsEl) mantObsEl.value = u.mantObs || '';
   toggleMantFields(u.status);
-  // New fields
+
+  // Tipo de viaje + paradas — only meaningful if there's an active trip
+  const edTV = document.getElementById('ed-tipo-viaje');
+  const edParadasList = document.getElementById('ed-paradas-list');
+  if(edParadasList) edParadasList.innerHTML = '';
+  if(edTV){
+    edTV.value = activeTrip ? (activeTrip.tipoViaje||'directo') : 'directo';
+    onEdTipoViajeChange();
+    if(activeTrip && activeTrip.paradas && activeTrip.paradas.length){
+      activeTrip.paradas.forEach(function(p){ addParadaEd(p); });
+    }
+  }
+
+  // Source of truth: active trip if it exists, otherwise the loose unit fields
+  const src = activeTrip || u;
+
   var edCli = document.getElementById('ed-cliente');
-  if(edCli){ edCli.value = u.cliente||''; }
+  if(edCli){ edCli.value = (activeTrip && activeTrip.sinCarga) ? '' : (src.cliente||''); }
   var edOri = document.getElementById('ed-origen');
-  if(edOri) edOri.value = u.origen||'';
+  if(edOri) edOri.value = src.origen||'';
   var edDes = document.getElementById('ed-destino');
-  if(edDes) edDes.value = u.destino||'';
+  if(edDes) edDes.value = src.destino||'';
   var edSal = document.getElementById('ed-salida');
-  if(edSal) edSal.value = u.salidaRaw||'';
+  if(edSal) edSal.value = activeTrip ? (activeTrip.citaCarga||'') : (u.salidaRaw||'');
   var edTCarga = document.getElementById('ed-tipo-carga');
-  if(edTCarga) edTCarga.value = u.temp||'';
+  if(edTCarga) edTCarga.value = activeTrip ? (activeTrip.tipoCarga||'') : (u.temp||'');
   // Populate ed-cliente datalist
   var edCliDl = document.getElementById('ed-cliente-list');
   if(edCliDl) edCliDl.innerHTML = getClientes().map(function(c){return '<option value="'+c+'">';}).join('');
   // populate eta
   const etaInput = document.getElementById('ed-eta');
-  if(u.etaRaw) {
+  if(activeTrip && activeTrip.citaDescarga){
+    etaInput.value = activeTrip.citaDescarga;
+  } else if(u.etaRaw) {
     etaInput.value = u.etaRaw;
   } else {
     etaInput.value = '';
-    // Show current eta as helper text below the field
   }
   const etaHelper = document.getElementById('ed-eta-helper');
   if(etaHelper) etaHelper.textContent = u.eta && u.eta!=='—' ? 'Cita actual: ' + u.eta : '';
-  document.getElementById('ed-nota').value = '';
-  document.getElementById('ed-operador').value = u.operador||'';
+  document.getElementById('ed-nota').value = activeTrip ? (activeTrip.obs||'') : '';
+  document.getElementById('ed-operador').value = src.operador||'';
   const edCp = document.getElementById('ed-cartaporte');
-  if(edCp) edCp.value = u.cartaporte||'';
+  if(edCp) edCp.value = src.cartaporte||'';
   const edCosto = document.getElementById('ed-costo');
-  if(edCosto) edCosto.value = u.costo||'';
+  if(edCosto) edCosto.value = (activeTrip ? activeTrip.costo : u.costo) || '';
 
   const thermoPanel = document.getElementById('ed-thermo-panel');
   const noThermo = document.getElementById('ed-no-thermo');
@@ -2711,123 +2677,97 @@ function guardarCambios(){
   if(editIdx===null) return;
   const u = units[editIdx];
   const prevStatus = u.status;
+  const activeTrip = getActiveTrip(u.id);
+
   u.status = document.getElementById('ed-status').value;
-  const etapaGuard = document.getElementById('ed-etapa');
-  if(etapaGuard){ const newE=etapaGuard.value; if(newE!==u.etapa){ u.etapa=newE; u.etapaTs=Date.now(); } }
-  const etaRaw = document.getElementById('ed-eta').value;
-  if(etaRaw) {
-    // New date selected — update it
-    if(etaRaw.includes('T')) {
-      const d = new Date(etaRaw);
-      u.eta = d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Monterrey'});
-      u.etaRaw = etaRaw;
-    } else {
-      u.eta = etaRaw;
-      u.etaRaw = '';
-    }
-  }
-  // If etaRaw is empty — date field was not touched, keep u.eta as-is
-  u.operador = document.getElementById('ed-operador').value || u.operador;
-  const gcCp = document.getElementById('ed-cartaporte');
-  if(gcCp && gcCp.value) u.cartaporte = gcCp.value;
-  const gcCosto = document.getElementById('ed-costo');
-  if(gcCosto && gcCosto.value) u.costo = parseFloat(gcCosto.value);
-  // New editable fields
-  var edCliSave = document.getElementById('ed-cliente');
-  if(edCliSave && edCliSave.value) u.cliente = edCliSave.value;
-  var edOriSave = document.getElementById('ed-origen');
-  if(edOriSave) u.origen = edOriSave.value;
-  var edDesSave = document.getElementById('ed-destino');
-  if(edDesSave) u.destino = edDesSave.value;
-  var edSalSave = document.getElementById('ed-salida');
-  if(edSalSave && edSalSave.value){ u.salidaRaw=edSalSave.value; var sd=new Date(edSalSave.value); u.salida=sd.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}); u.fechaSalida=edSalSave.value.slice(0,10); }
-  var edTCSave = document.getElementById('ed-tipo-carga');
-  if(edTCSave) u.temp = edTCSave.value;
+  if(u.status === 'mant') u.etapa = 'mant';
   var edMantObsSave = document.getElementById('ed-mant-obs');
   if(edMantObsSave) u.mantObs = edMantObsSave.value;
-  if(u.status === 'mant') u.etapa = 'mant';
-  const nota = document.getElementById('ed-nota').value;
+
+  // Read shared form fields once
+  const etapaGuard = document.getElementById('ed-etapa');
+  const newEtapa = etapaGuard ? etapaGuard.value : null;
+  const tipoViajeVal = (document.getElementById('ed-tipo-viaje')||{}).value || 'directo';
+  const isSinCarga = tipoViajeVal === 'vacio';
+  const isMulti = tipoViajeVal === 'repartos' || tipoViajeVal === 'ciudades';
+  const clienteVal = (document.getElementById('ed-cliente')||{}).value || '';
+  const origenVal = (document.getElementById('ed-origen')||{}).value || '';
+  const destinoVal = (document.getElementById('ed-destino')||{}).value || '';
+  const salidaVal = (document.getElementById('ed-salida')||{}).value || '';
+  const etaVal = (document.getElementById('ed-eta')||{}).value || '';
+  const operadorVal = (document.getElementById('ed-operador')||{}).value || '';
+  const cartaporteVal = (document.getElementById('ed-cartaporte')||{}).value || '';
+  const costoVal = (document.getElementById('ed-costo')||{}).value || '';
+  const tipoCargaVal = (document.getElementById('ed-tipo-carga')||{}).value || '';
+  const notaVal = (document.getElementById('ed-nota')||{}).value || '';
+
+  // Gather paradas if multi-stop
+  var paradas = [];
+  if(isMulti){
+    document.querySelectorAll('#ed-paradas-list > div').forEach(function(row){
+      var d = row.querySelector('.ed-parada-dest'), c = row.querySelector('.ed-parada-cita');
+      if(d && d.value.trim()) paradas.push({destino:d.value.trim(), citaDescarga:c?c.value:'', completada:false});
+    });
+  }
+
+  if(activeTrip && u.status !== 'mant'){
+    // ── Write to the ACTIVE TRIP (source of truth used by renderBoard/calendar) ──
+    activeTrip.tipoViaje = tipoViajeVal;
+    activeTrip.sinCarga = isSinCarga;
+    activeTrip.cliente = isSinCarga ? '' : clienteVal;
+    activeTrip.origen = origenVal;
+    if(isMulti){
+      activeTrip.paradas = paradas;
+      activeTrip.destino = paradas.map(function(p){ return p.destino; }).join(' / ');
+      activeTrip.citaDescarga = paradas.length ? (paradas[paradas.length-1].citaDescarga||'') : activeTrip.citaDescarga;
+    } else {
+      activeTrip.paradas = [];
+      activeTrip.destino = destinoVal;
+      if(etaVal) activeTrip.citaDescarga = etaVal;
+    }
+    if(salidaVal) activeTrip.citaCarga = salidaVal;
+    if(operadorVal) activeTrip.operador = operadorVal;
+    if(cartaporteVal) activeTrip.cartaporte = cartaporteVal;
+    if(costoVal) activeTrip.costo = '$'+parseFloat(costoVal).toLocaleString('es-MX');
+    if(tipoCargaVal) activeTrip.tipoCarga = tipoCargaVal;
+    activeTrip.obs = notaVal;
+    if(newEtapa && newEtapa !== activeTrip.etapa){ activeTrip.etapa = newEtapa; u.etapaTs = Date.now(); }
+    u.etapa = activeTrip.etapa;
+  } else {
+    // ── No active trip (unit free, or in maintenance): write to the loose unit object ──
+    if(newEtapa && newEtapa !== u.etapa){ u.etapa = newEtapa; u.etapaTs = Date.now(); }
+    if(etaVal) {
+      if(etaVal.includes('T')) {
+        const d = new Date(etaVal);
+        u.eta = d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Monterrey'});
+        u.etaRaw = etaVal;
+      } else {
+        u.eta = etaVal;
+        u.etaRaw = '';
+      }
+    }
+    u.operador = operadorVal || u.operador;
+    if(cartaporteVal) u.cartaporte = cartaporteVal;
+    if(costoVal) u.costo = parseFloat(costoVal);
+    if(clienteVal) u.cliente = clienteVal;
+    u.origen = origenVal;
+    u.destino = destinoVal;
+    if(salidaVal){ u.salidaRaw=salidaVal; var sd=new Date(salidaVal); u.salida=sd.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}); u.fechaSalida=salidaVal.slice(0,10); }
+    if(tipoCargaVal) u.temp = tipoCargaVal;
+  }
+
   if(u.thermo){
     const tv = document.getElementById('ed-temp').value;
     if(tv !== '') u.temp = parseFloat(tv);
   }
   const now = new Date().toLocaleTimeString('es-MX',{timeZone:'America/Monterrey',hour:'2-digit',minute:'2-digit',hour12:false});
-  bitacora.unshift({id:unitLabel(u),de:SL[prevStatus],a:SL[u.status],eta:u.eta,nota:nota||'Sin observaciones',hora:now,user:currentUser.name});
+  bitacora.unshift({id:unitLabel(u),de:SL[prevStatus],a:SL[u.status],eta:u.eta,nota:notaVal||'Sin observaciones',hora:now,user:currentUser.name});
   saveAll();
   const t = document.getElementById('toast-edit');
   t.style.display='block'; setTimeout(()=>t.style.display='none',2500);
-  renderBoard(); renderStats(); renderTicker();
+  renderBoard(); renderStats(); renderTicker(); renderCalendar();
   var tblBtn2 = document.querySelector('[onclick*="tablero"]'); if(tblBtn2) showView('tablero', tblBtn2);
 }
-
-function nuevaSalida(){
-  const num = (document.getElementById('nv-num').value||'').trim();
-  if(!num){ alert('Ingresa el número de la unidad'); return; }
-  const tipo = document.getElementById('nv-tipo').value;
-  const templimit = document.getElementById('nv-templimit').value || '';
-  const u = {
-    id: num, tipo,
-    oficina: 'MTY',
-    status: 'ontime',
-    origen: document.getElementById('nv-origen').value||'—',
-    destino: document.getElementById('nv-destino').value||'—',
-    cliente: (document.getElementById('nv-cliente-sel')||{value:''}).value.trim() || 'Sin cliente',
-    eta: (function(){ const v=document.getElementById('nv-eta').value; if(!v) return '—'; if(v.includes('T')){ const d=new Date(v); return d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Monterrey'}); } return v; })(),
-    etaRaw: document.getElementById('nv-eta').value||'',
-    salida: (function(){ const v=document.getElementById('nv-salida')?document.getElementById('nv-salida').value:''; if(!v) return ''; const d=new Date(v); return d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}); })(),
-    fechaSalida: (function(){ const v=document.getElementById('nv-salida')?document.getElementById('nv-salida').value:''; return v?v.slice(0,10):''; })(),
-    etapa: (document.getElementById('nv-etapa') ? document.getElementById('nv-etapa').value : 'cargando'),
-    thermo: tipo === 'THM',
-    temp: templimit || null,
-    tempLimit: null,
-    operador: (document.getElementById('nv-operador').value||'—'),
-    carga: document.getElementById('nv-carga').value||'N/A',
-    cartaporte: document.getElementById('nv-cartaporte') ? document.getElementById('nv-cartaporte').value||'—' : '—',
-    tipoViaje: document.getElementById('nv-tipo-viaje') ? document.getElementById('nv-tipo-viaje').value : 'directo',
-    paradas: (document.getElementById('nv-tipo-viaje') && document.getElementById('nv-tipo-viaje').value!=='directo') ? JSON.parse(JSON.stringify(nvParadas)) : [],
-    costo: document.getElementById('nv-costo') ? (parseFloat(document.getElementById('nv-costo').value)||0) : 0,
-  };
-  // If unit already exists, update it; if new number, add it
-  const existingIdx = units.findIndex(function(x){ return x.id === u.id; });
-  const prevStatus = existingIdx >= 0 ? units[existingIdx].status : '—';
-  if(existingIdx >= 0){
-    units[existingIdx] = u;
-  } else {
-    units.push(u);
-  }
-  const now = new Date().toLocaleTimeString('es-MX',{timeZone:'America/Monterrey',hour:'2-digit',minute:'2-digit',hour12:false});
-  bitacora.unshift({id:unitLabel(u),de:prevStatus==='—'?'Nueva':prevStatus,a:'Registrada',eta:u.eta,nota:'Nueva salida registrada',hora:now,user:currentUser.name});
-  ['nv-origen','nv-destino','nv-cliente','nv-salida','nv-eta','nv-templimit','nv-operador','nv-carga','nv-cartaporte','nv-costo'].forEach(f=>{
-    const el=document.getElementById(f); if(el) el.value='';
-  });
-  nvParadas = [];
-  const nvNumSelEl = document.getElementById('nv-num');
-  if(nvNumSelEl) nvNumSelEl.value = '';
-  const nvEtapaEl = document.getElementById('nv-etapa');
-  if(nvEtapaEl) nvEtapaEl.value = 'cargando';
-  const nvCliEl = document.getElementById('nv-cliente-sel');
-  if(nvCliEl) nvCliEl.value = '';
-  const tvEl = document.getElementById('nv-tipo-viaje');
-  if(tvEl){ tvEl.value='directo'; toggleTipoViaje(); }
-  // Hide custom input fields after submit
-  const nvCustom = document.getElementById('nv-num-custom');
-  if(nvCustom) nvCustom.style.display='none';
-  const nvClienteInp = document.getElementById('nv-cliente');
-  if(nvClienteInp) nvClienteInp.style.display='none';
-  const nvTempField = document.getElementById('nv-temp-field');
-  if(nvTempField) nvTempField.style.display='none';
-  const t = document.getElementById('toast-nueva');
-  t.style.display='block'; setTimeout(()=>t.style.display='none',2500);
-  saveAll();
-  renderBoard(); renderStats(); renderTicker(); renderUnitSelectList();
-  populateClienteSelects(); populateUnidadSelect();
-  // Go back to tablero
-  var tblBtn = document.querySelector('[onclick*=\'tablero\']');
-  if(tblBtn) showView('tablero', tblBtn);
-}
-
-
-
 
 function renderDisponibles(){
   var c = document.getElementById('disp-grid');
@@ -3221,35 +3161,45 @@ function renderCalendar(){
 
 function openCalEdit(){
   if(currentCalTripIdx === null) return;
-  const t = calTrips[currentCalTripIdx];
-  document.getElementById('ce-cliente').value = t.cliente||'';
+  const t = currentCalTripSource[currentCalTripIdx];
+  document.getElementById('ce-cliente').value = t.sinCarga ? '' : (t.cliente||'');
   document.getElementById('ce-destino').value = t.destino||'';
-  document.getElementById('ce-cp').value = t.cartaPorte||'';
-  document.getElementById('ce-costo').value = t.costo||'';
-  document.getElementById('ce-obs').value = t.observaciones||'';
-  document.getElementById('ce-eta').value = t.etaRaw||'';
-  document.getElementById('ce-salida').value = t.salidaRaw||'';
+  document.getElementById('ce-cp').value = t.cartaporte||t.cartaPorte||'';
+  document.getElementById('ce-costo').value = (typeof t.costo === 'string') ? t.costo.replace(/[^0-9.]/g,'') : (t.costo||'');
+  document.getElementById('ce-obs').value = t.obs||t.observaciones||'';
+  document.getElementById('ce-eta').value = t.citaDescarga || t.etaRaw || '';
+  document.getElementById('ce-salida').value = t.citaCarga || t.salidaRaw || '';
   document.getElementById('cal-modal-body').style.display = 'none';
   document.getElementById('cal-edit-form').style.display = '';
 }
 
 function saveCalEdit(){
   if(currentCalTripIdx === null) return;
-  const t = calTrips[currentCalTripIdx];
+  const t = currentCalTripSource[currentCalTripIdx];
   t.cliente = document.getElementById('ce-cliente').value || t.cliente;
   t.destino = document.getElementById('ce-destino').value || t.destino;
-  t.cartaPorte = document.getElementById('ce-cp').value || t.cartaPorte;
+  if(t.hasOwnProperty('cartaporte')) t.cartaporte = document.getElementById('ce-cp').value || t.cartaporte;
+  else t.cartaPorte = document.getElementById('ce-cp').value || t.cartaPorte;
   const cVal = document.getElementById('ce-costo').value;
-  if(cVal) t.costo = parseFloat(cVal);
-  t.observaciones = document.getElementById('ce-obs').value;
+  if(cVal) t.costo = '$'+parseFloat(cVal).toLocaleString('es-MX');
+  if(t.hasOwnProperty('obs')) t.obs = document.getElementById('ce-obs').value;
+  else t.observaciones = document.getElementById('ce-obs').value;
   const etaV = document.getElementById('ce-eta').value;
-  if(etaV){ const d=new Date(etaV); t.eta=d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}); t.fecha=etaV.slice(0,10); t.etaRaw=etaV; const fd=d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}); t.fechaDisplay=fd; }
+  if(etaV){
+    if(t.hasOwnProperty('citaDescarga')){ t.citaDescarga = etaV; t.fecha = t.citaCarga ? t.citaCarga.slice(0,10) : etaV.slice(0,10); }
+    else { const d=new Date(etaV); t.eta=d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}); t.fecha=etaV.slice(0,10); t.etaRaw=etaV; t.fechaDisplay=d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}); }
+  }
   const salV = document.getElementById('ce-salida').value;
-  if(salV){ const s=new Date(salV); t.salida=s.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}); t.fechaSalida=salV.slice(0,10); t.salidaRaw=salV; }
+  if(salV){
+    if(t.hasOwnProperty('citaCarga')){ t.citaCarga = salV; t.fecha = salV.slice(0,10); }
+    else { const s=new Date(salV); t.salida=s.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}); t.fechaSalida=salV.slice(0,10); t.salidaRaw=salV; }
+  }
   saveAll();
   document.getElementById('cal-edit-form').style.display='none';
   document.getElementById('cal-modal').classList.remove('open');
   renderCalendar();
+  renderBoard();
+  renderDisponibles();
 }
 
 function calMove(dir){
@@ -3264,23 +3214,28 @@ function calToday(){
 // calAddTrip replaced
 
 let currentCalTripIdx = null;
+let currentCalTripSource = null;
 function openCalModal(idx){
   currentCalTripIdx = idx;
   var allTripsArr = (typeof trips !== 'undefined' && trips.length > 0) ? trips : calTrips;
+  currentCalTripSource = allTripsArr; // remember which array this trip actually came from
   const trip = allTripsArr[idx];
-  const statusLabel = {ontime:'A tiempo',delay:'Retraso',risk:'En riesgo',mant:'Mantenimiento',load:'Cargando',done:'Entregado',future:'Programado'};
+  const statusLabel = {ontime:'A tiempo',delay:'Retraso',risk:'En riesgo',mant:'Mantenimiento',load:'Cargando',done:'Entregado',future:'Programado',active:'Activo',programado:'Programado',finalizado:'Finalizado'};
   document.getElementById('cal-modal-title').textContent = (trip.tipo||'CAM')+'-'+trip.unitId+' — '+trip.destino;
   const ccolor2 = getClientColor(trip.cliente);
-  const salidaInfo = trip.salida ? (fmtDia(trip.fechaSalida||trip.fecha)+' '+trip.salida) : '—';
-  const costoFmt = trip.costo ? '$'+Number(trip.costo).toLocaleString('es-MX') : '—';
+  const citaCargaVal = trip.citaCarga || trip.salidaRaw || '';
+  const citaDescargaVal = trip.citaDescarga || trip.etaRaw || '';
+  const salidaInfo = citaCargaVal ? new Date(citaCargaVal).toLocaleString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : (trip.salida ? (fmtDia(trip.fechaSalida||trip.fecha)+' '+trip.salida) : '—');
+  const citaInfo = citaDescargaVal ? new Date(citaDescargaVal).toLocaleString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '— (sin definir)';
+  const costoFmt = trip.costo ? (isNaN(trip.costo) ? trip.costo : '$'+Number(trip.costo).toLocaleString('es-MX')) : '—';
   document.getElementById('cal-modal-body').innerHTML =
-    '<div class="cal-modal-row"><span class="cal-modal-lbl">Cliente</span><span class="cal-modal-val" style="color:'+ccolor2+';font-weight:700;">'+trip.cliente+'</span></div>'+
+    '<div class="cal-modal-row"><span class="cal-modal-lbl">Cliente</span><span class="cal-modal-val" style="color:'+ccolor2+';font-weight:700;">'+(trip.sinCarga?(trip.sincargaTipo||'Sin carga'):trip.cliente)+'</span></div>'+
     '<div class="cal-modal-row"><span class="cal-modal-lbl">Ruta</span><span class="cal-modal-val">'+(trip.origen||'—')+' → '+trip.destino+'</span></div>'+
-    '<div class="cal-modal-row"><span class="cal-modal-lbl">Salida</span><span class="cal-modal-val">'+salidaInfo+'</span></div>'+
-    '<div class="cal-modal-row"><span class="cal-modal-lbl">Cita / Llegada</span><span class="cal-modal-val" style="color:var(--blue);font-weight:700;font-size:14px;">'+(trip.fechaDisplay||trip.fecha)+' '+trip.eta+'</span></div>'+
-    '<div class="cal-modal-row"><span class="cal-modal-lbl">Carta Porte</span><span class="cal-modal-val" style="font-weight:600;">'+(trip.cartaPorte||'—')+'</span></div>'+
+    '<div class="cal-modal-row"><span class="cal-modal-lbl">Cita de carga</span><span class="cal-modal-val">'+salidaInfo+'</span></div>'+
+    '<div class="cal-modal-row"><span class="cal-modal-lbl">Cita de descarga</span><span class="cal-modal-val" style="color:'+(citaDescargaVal?'var(--blue)':'var(--muted)')+';font-weight:700;font-size:14px;">'+citaInfo+'</span></div>'+
+    '<div class="cal-modal-row"><span class="cal-modal-lbl">Carta Porte</span><span class="cal-modal-val" style="font-weight:600;">'+(trip.cartaporte||trip.cartaPorte||'—')+'</span></div>'+
     '<div class="cal-modal-row"><span class="cal-modal-lbl">Costo</span><span class="cal-modal-val" style="font-weight:700;color:var(--navy);">'+costoFmt+'</span></div>'+
-    (trip.observaciones ? '<div class="cal-modal-row"><span class="cal-modal-lbl">Observaciones</span><span class="cal-modal-val">'+trip.observaciones+'</span></div>' : '')+
+    (trip.obs||trip.observaciones ? '<div class="cal-modal-row"><span class="cal-modal-lbl">Observaciones</span><span class="cal-modal-val">'+(trip.obs||trip.observaciones)+'</span></div>' : '')+
     '<div class="cal-modal-row"><span class="cal-modal-lbl">Estado</span><span class="cal-modal-val">'+(statusLabel[trip.status]||'Programado')+'</span></div>';
   // Show edit button only for non-viewers
   const editBtn = document.getElementById('cal-edit-btn');
