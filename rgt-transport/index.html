@@ -1173,7 +1173,7 @@ function fetchGpsData(){
       var lng = v.Longitud ?? v.lng ?? v.longitud ?? 0;
       var activeTrip = getActiveTrip(uid);
       if(activeTrip){
-        if(motor && vel > 5 && activeTrip.etapa === 'cargando'){
+        if(motor && vel > 15 && activeTrip.etapa === 'cargando'){
           activeTrip.etapa = 'transito';
           u.etapa = 'transito';
           bitacora.unshift({id:uid,de:'cargando',a:'transito',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'GPS: en movimiento '+Math.round(vel)+'km/h',user:'GPS'});
@@ -2735,7 +2735,13 @@ function guardarCambios(){
   u.status = document.getElementById('ed-status').value;
   if(u.status === 'mant') u.etapa = 'mant';
   var edMantObsSave = document.getElementById('ed-mant-obs');
-  if(edMantObsSave) u.mantObs = edMantObsSave.value;
+  if(u.status === 'mant'){
+    if(edMantObsSave) u.mantObs = edMantObsSave.value;
+  } else if(prevStatus === 'mant') {
+    // Leaving maintenance — clear the old maintenance note so it doesn't linger
+    u.mantObs = '';
+    u.gpsMotorOffAt = null;
+  }
 
   // Read shared form fields once
   const etapaGuard = document.getElementById('ed-etapa');
