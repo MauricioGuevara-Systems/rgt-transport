@@ -1196,6 +1196,9 @@ function fetchGpsData(){
       var lat = v.Latitud ?? v.lat ?? v.latitud ?? 0;
       var lng = v.Longitud ?? v.lng ?? v.longitud ?? 0;
       var activeTrip = getActiveTrip(uid);
+      if(vel > 10){
+        console.log('[GPS MOV]', 'uid:'+uid, 'vel:'+vel, 'motor:'+motor, 'activeTrip:'+(activeTrip?activeTrip.tripId:'SIN VIAJE ACTIVO'), 'etapa:'+(activeTrip?activeTrip.etapa:'-'), 'trip.status:'+(activeTrip?activeTrip.status:'-'));
+      }
       if(activeTrip){
         // Coordenadas reales capturadas al crear el viaje tienen prioridad sobre el diccionario de ciudades
         var origCoords = (activeTrip.origenLat && activeTrip.origenLng) ? [activeTrip.origenLat, activeTrip.origenLng]
