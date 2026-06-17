@@ -1376,14 +1376,54 @@ function haversineKm(la1,lo1,la2,lo2){
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
+// ── ETA via OSRM (real road routing, free, no API key) ──
+var osrmCache = {};      // key "lat1,lng1|lat2,lng2" -> {km, horas, ts}
+var osrmPending = {};    // key -> true while a request is in flight
+var OSRM_BASE = 'https://router.project-osrm.org/route/v1/driving/';
+
+function osrmCacheKey(la1,lo1,la2,lo2){
+  return la1.toFixed(3)+','+lo1.toFixed(3)+'|'+la2.toFixed(3)+','+lo2.toFixed(3);
+}
+
+function fetchOsrmRoute(la1,lo1,la2,lo2){
+  var key = osrmCacheKey(la1,lo1,la2,lo2);
+  if(osrmCache[key] || osrmPending[key]) return; // already cached or already requesting
+  osrmPending[key] = true;
+  var url = OSRM_BASE + lo1 + ',' + la1 + ';' + lo2 + ',' + la2 + '?overview=false';
+  fetch(url).then(function(r){ return r.json(); }).then(function(data){
+    delete osrmPending[key];
+    if(data && data.code === 'Ok' && data.routes && data.routes[0]){
+      var km = data.routes[0].distance / 1000;       // meters -> km
+      var horas = data.routes[0].duration / 3600;    // seconds -> hours
+      osrmCache[key] = { km: km, horas: horas, ts: Date.now(), real: true };
+      // Re-render so the real value replaces the Haversine estimate on screen
+      renderBoard(); renderStats();
+    }
+  }).catch(function(e){
+    delete osrmPending[key];
+    console.warn('[OSRM] route fetch failed:', e.message);
+  });
+}
+
 function calcETA(origen, destino, citaDescarga, fromLat, fromLng){
   // Punto de partida: GPS real del camion si esta disponible, si no la ciudad origen
   var oc = (fromLat && fromLng) ? [fromLat, fromLng] : getCityCoords(origen);
   var dc = getCityCoords(destino);
   if(!oc || !dc) return null;
-  var km = haversineKm(oc[0], oc[1], dc[0], dc[1]);
-  // Tiempo: distancia/85km/h + 1h maniobras ciudad + 30min camion
-  var horas = (km/85) + 1.0 + 0.5;
+
+  var key = osrmCacheKey(oc[0],oc[1],dc[0],dc[1]);
+  var cached = osrmCache[key];
+  var km, horas, isReal;
+  if(cached){
+    km = cached.km; horas = cached.horas; isReal = true;
+  } else {
+    // Fallback estimate while the real OSRM route loads in the background
+    km = haversineKm(oc[0], oc[1], dc[0], dc[1]);
+    horas = (km/85) + 1.0 + 0.5;
+    isReal = false;
+    fetchOsrmRoute(oc[0],oc[1],dc[0],dc[1]); // fire and forget; will re-render when ready
+  }
+
   var etaMs = Date.now() + horas*3600000;
   var status = 'ontime';
   if(citaDescarga){
@@ -1394,7 +1434,7 @@ function calcETA(origen, destino, citaDescarga, fromLat, fromLng){
     else if(diffHrs < 2) status = 'risk';       // llega entre 30min y 2h antes = EN RIESGO
     else status = 'ontime';                     // llega 2+ horas antes = A TIEMPO
   }
-  return {km:Math.round(km), horas:Math.round(horas*10)/10, etaMs:etaMs, status:status};
+  return {km:Math.round(km), horas:Math.round(horas*10)/10, etaMs:etaMs, status:status, real:isReal};
 }
 
 function updateTripStatuses(){
@@ -2379,7 +2419,7 @@ function renderBoard(){
         if(ec){
           if(at.citaDescarga && new Date(at.citaDescarga).getTime()<Date.now()) ec.status='delay';
           at.statusCalc=ec.status; u.status=ec.status;
-          u.etaKm=ec.km; u.etaHoras=ec.horas;
+          u.etaKm=ec.km; u.etaHoras=ec.horas; u.etaReal=ec.real;
         }
       }
     } else if(!at && u.status!=='mant'){
@@ -2394,7 +2434,8 @@ function renderBoard(){
     if(u.etapa==='transito' && u.etaKm){
       var col = u.status==='delay'?'#e74c3c':u.status==='risk'?'#f39c12':'#27ae60';
       var gps = u.gpsLat?'<span style="font-size:8px;color:#1a56db;">GPS </span>':'';
-      etaHtml += '<div style="font-size:11px;color:'+col+';font-weight:600;">'+gps+u.etaKm+'km ~'+u.etaHoras+'h</div>';
+      var rutaTag = u.etaReal ? '' : '<span style="font-size:8px;color:#aaa;" title="Estimado mientras carga la ruta real">~aprox</span> ';
+      etaHtml += '<div style="font-size:11px;color:'+col+';font-weight:600;">'+gps+rutaTag+u.etaKm+'km ~'+u.etaHoras+'h</div>';
     }
     if(u.eta){
       var cf = new Date(u.eta).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})+' '+new Date(u.eta).toLocaleDateString('es-MX',{day:'numeric',month:'short'});
