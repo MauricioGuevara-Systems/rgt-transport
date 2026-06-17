@@ -1155,11 +1155,28 @@ function fetchGpsData(){
   .then(function(r){ return r.json(); })
   .then(function(vehiculos){
     if(!Array.isArray(vehiculos)) return;
+    console.log('[GPS DEBUG] Total vehiculos recibidos:', vehiculos.length);
+    console.log('[GPS DEBUG] Primeros 5 nombres crudos:', vehiculos.slice(0,5).map(function(v){ return v.nombre || v.name || v.placa || '(sin nombre)'; }));
+
+    // Build uid -> list of {v, name, isPrimary} to resolve duplicates (truck vs thermo device)
+    var byUid = {};
     vehiculos.forEach(function(v){
-      var name = v.nombre || v.name || v.placa || '';
-      var match = name.match(/RG-?0*(\d+)/i);
+      var name = (v.nombre || v.name || v.placa || '').trim();
+      var match = name.match(/^0*(\d+)/);
       if(!match) return;
       var uid = String(parseInt(match[1]));
+      // Primary device name is just the number (e.g. "047"), possibly with leading zeros, nothing else.
+      // Thermo/secondary devices have extra suffix like "047RGT", "037-LOW", "061-L", "156-BT".
+      var isPrimary = /^0*\d+$/.test(name);
+      if(!byUid[uid]) byUid[uid] = [];
+      byUid[uid].push({ v:v, name:name, isPrimary:isPrimary });
+    });
+
+    Object.keys(byUid).forEach(function(uid){
+      var candidates = byUid[uid];
+      // Prefer the primary (plain-number) device; fall back to first available if no primary found
+      var chosen = candidates.find(function(c){ return c.isPrimary; }) || candidates[0];
+      var v = chosen.v;
       var u = units.find(function(x){ return x.id === uid; });
       if(!u || u.status === 'mant') return;
       var motor = v.ignicion === true || v.ignicion === 1 || v.estado === 'encendido';
