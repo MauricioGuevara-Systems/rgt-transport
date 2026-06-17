@@ -377,8 +377,22 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
               <input id="ed-cliente" list="ed-cliente-list" placeholder="Escribe o selecciona cliente..." autocomplete="off" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
               <datalist id="ed-cliente-list"></datalist>
             </div>
-            <div class="field"><label>Origen</label><input id="ed-origen" placeholder="Ej. Monterrey, Apodaca..." style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/></div>
-            <div class="field"><label>Destino</label><input id="ed-destino" placeholder="Ej. CDMX, Guadalajara..." style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/></div>
+            <div class="field"><label>Origen</label>
+              <div style="display:flex;gap:6px;">
+                <input id="ed-origen" placeholder="Ej. Monterrey, Apodaca..." style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
+                <button type="button" onclick="capturarGpsEd('origen')" title="Usar posición GPS actual del camión" style="background:var(--blue);color:#fff;border:none;padding:0 10px;border-radius:5px;font-size:13px;cursor:pointer;">📍</button>
+              </div>
+              <input type="hidden" id="ed-origen-lat"/><input type="hidden" id="ed-origen-lng"/>
+              <div id="ed-origen-gps-tag" style="font-size:10px;color:#27ae60;margin-top:3px;"></div>
+            </div>
+            <div class="field"><label>Destino</label>
+              <div style="display:flex;gap:6px;">
+                <input id="ed-destino" placeholder="Ej. CDMX, Guadalajara..." style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
+                <button type="button" onclick="capturarGpsEd('destino')" title="Usar posición GPS actual del camión" style="background:var(--blue);color:#fff;border:none;padding:0 10px;border-radius:5px;font-size:13px;cursor:pointer;">📍</button>
+              </div>
+              <input type="hidden" id="ed-destino-lat"/><input type="hidden" id="ed-destino-lng"/>
+              <div id="ed-destino-gps-tag" style="font-size:10px;color:#27ae60;margin-top:3px;"></div>
+            </div>
             <div class="field"><label>Cita de carga</label><input id="ed-salida" type="datetime-local" lang="es-MX"/></div>
             <div class="field"><label>Cita de descarga</label><input id="ed-eta" type="datetime-local" lang="es-MX"/><div id="ed-eta-helper" style="font-size:11px;color:var(--blue);margin-top:3px;font-weight:600;"></div></div>
             <div class="field"><label>Tipo de carga</label>
@@ -535,13 +549,23 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
             <!-- Origen -->
             <div class="field">
               <label>Origen</label>
-              <input id="cv-origen" placeholder="Ej. Monterrey" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
+              <div style="display:flex;gap:6px;">
+                <input id="cv-origen" placeholder="Ej. Monterrey" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
+                <button type="button" onclick="capturarGpsCv('origen')" title="Usar posición GPS actual del camión" style="background:var(--blue);color:#fff;border:none;padding:0 10px;border-radius:5px;font-size:13px;cursor:pointer;">📍</button>
+              </div>
+              <input type="hidden" id="cv-origen-lat"/><input type="hidden" id="cv-origen-lng"/>
+              <div id="cv-origen-gps-tag" style="font-size:10px;color:#27ae60;margin-top:3px;"></div>
             </div>
 
             <!-- Destino -->
             <div class="field" id="cv-destino-wrap">
               <label>Destino</label>
-              <input id="cv-destino" placeholder="Ej. CDMX, Cancún..." style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
+              <div style="display:flex;gap:6px;">
+                <input id="cv-destino" placeholder="Ej. CDMX, Cancún..." style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
+                <button type="button" onclick="capturarGpsCv('destino')" title="Usar posición GPS actual del camión" style="background:var(--blue);color:#fff;border:none;padding:0 10px;border-radius:5px;font-size:13px;cursor:pointer;">📍</button>
+              </div>
+              <input type="hidden" id="cv-destino-lat"/><input type="hidden" id="cv-destino-lng"/>
+              <div id="cv-destino-gps-tag" style="font-size:10px;color:#27ae60;margin-top:3px;"></div>
             </div>
 
             <!-- Cliente -->
@@ -1173,24 +1197,56 @@ function fetchGpsData(){
       var lng = v.Longitud ?? v.lng ?? v.longitud ?? 0;
       var activeTrip = getActiveTrip(uid);
       if(activeTrip){
-        if(motor && vel > 15 && activeTrip.etapa === 'cargando'){
-          activeTrip.etapa = 'transito';
-          u.etapa = 'transito';
-          bitacora.unshift({id:uid,de:'cargando',a:'transito',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'GPS: en movimiento '+Math.round(vel)+'km/h',user:'GPS'});
-          saveAll();
+        // Coordenadas reales capturadas al crear el viaje tienen prioridad sobre el diccionario de ciudades
+        var origCoords = (activeTrip.origenLat && activeTrip.origenLng) ? [activeTrip.origenLat, activeTrip.origenLng]
+                          : (activeTrip.origen ? getCityCoords(activeTrip.origen) : null);
+        var destCoords = (activeTrip.destinoLat && activeTrip.destinoLng) ? [activeTrip.destinoLat, activeTrip.destinoLng]
+                          : (activeTrip.destino ? getCityCoords(activeTrip.destino) : null);
+        var distFromOrig = (origCoords && lat && lng) ? haversineKm(lat,lng,origCoords[0],origCoords[1]) : null;
+        var distToDest   = (destCoords && lat && lng) ? haversineKm(lat,lng,destCoords[0],destCoords[1]) : null;
+        var NEAR_KM = 8; // dentro de 8km de un punto se considera "ahi"
+
+        // ── CARGANDO -> TRANSITO ──
+        // Sale del estado "cargando" en cuanto deja de estar cerca del origen (si lo conocemos),
+        // o en su defecto en cuanto el GPS detecta movimiento real (vel > 15km/h con motor).
+        if(activeTrip.etapa === 'cargando'){
+          var leftOrigin = (distFromOrig !== null) ? (distFromOrig > NEAR_KM) : (motor && vel > 15);
+          if(leftOrigin){
+            activeTrip.etapa = 'transito';
+            u.etapa = 'transito';
+            u.gpsMotorOffAt = null;
+            bitacora.unshift({id:uid,de:'cargando',a:'transito',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:(distFromOrig!==null?'GPS: '+Math.round(distFromOrig)+'km del origen':'GPS: en movimiento '+Math.round(vel)+'km/h'),user:'GPS'});
+            saveAll();
+          }
         }
-        if(!motor && activeTrip.etapa === 'transito' && lat && lng && activeTrip.destino){
-          var destCity = activeTrip.destino.toUpperCase();
-          var currentCity = getApproxLocation(lat,lng).toUpperCase();
-          var nearDest = currentCity && (destCity.includes(currentCity.split(' ')[0]) || currentCity.includes(destCity.split(' ')[0]));
-          if(nearDest){
+        // ── TRANSITO -> ARRIBO ──
+        // Llega a "arribo" si esta cerca del destino (por coordenadas conocidas, o por nombre de
+        // ciudad aproximado via getApproxLocation), y el motor lleva apagado un rato ahi (evita
+        // marcar arribo por una parada corta en ruta).
+        else if(activeTrip.etapa === 'transito'){
+          var nearDestByCoords = (distToDest !== null) ? (distToDest <= NEAR_KM) : false;
+          var nearDestByName = false;
+          if(!nearDestByCoords && lat && lng && activeTrip.destino){
+            var destCity = activeTrip.destino.toUpperCase();
+            var currentCity = getApproxLocation(lat,lng).toUpperCase();
+            nearDestByName = currentCity && (destCity.includes(currentCity.split(' ')[0]) || currentCity.includes(destCity.split(' ')[0]));
+          }
+          var nearDest = nearDestByCoords || nearDestByName;
+          // Tambien sale de "transito" si volvio a quedar muy cerca del origen otra vez (ida y vuelta corta)
+          var backAtOrigin = (distFromOrig !== null) ? (distFromOrig <= NEAR_KM) : false;
+
+          if(!motor && nearDest){
             if(!u.gpsMotorOffAt){ u.gpsMotorOffAt = Date.now(); }
             else if(Date.now()-u.gpsMotorOffAt >= 1200000){
               activeTrip.etapa = 'arribo'; u.etapa = 'arribo'; u.gpsMotorOffAt = null;
-              bitacora.unshift({id:uid,de:'transito',a:'arribo',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'GPS: 20min apagado en '+currentCity,user:'GPS'});
+              bitacora.unshift({id:uid,de:'transito',a:'arribo',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'GPS: 20min apagado cerca del destino',user:'GPS'});
               saveAll();
             }
-          } else { u.gpsMotorOffAt = null; }
+          } else if(backAtOrigin){
+            u.gpsMotorOffAt = null; // sigue en ruta, no cuenta como llegada
+          } else {
+            u.gpsMotorOffAt = null;
+          }
         }
         if(motor && u.gpsMotorOffAt) u.gpsMotorOffAt = null;
       }
@@ -1450,6 +1506,34 @@ function updateTripStatuses(){
   if(changed){renderBoard();renderStats();}
 }
 
+// ── CAPTURAR POSICION GPS REAL para origen/destino ──────────────────────────
+function capturarGpsCv(campo){
+  var unitId = (document.getElementById('cv-unit-inp')||{}).value || '';
+  var u = units.find(function(x){ return x.id === unitId.trim(); });
+  if(!u){ alert('Primero selecciona el número de unidad'); return; }
+  if(!u.gpsLat || !u.gpsLng){ alert('Esta unidad no tiene posición GPS disponible en este momento'); return; }
+  var latEl = document.getElementById('cv-'+campo+'-lat');
+  var lngEl = document.getElementById('cv-'+campo+'-lng');
+  var tagEl = document.getElementById('cv-'+campo+'-gps-tag');
+  if(latEl) latEl.value = u.gpsLat;
+  if(lngEl) lngEl.value = u.gpsLng;
+  var loc = u.gpsLoc || getApproxLocation(u.gpsLat,u.gpsLng);
+  if(tagEl) tagEl.textContent = '✓ Posición GPS capturada ('+loc+')';
+}
+
+function capturarGpsEd(campo){
+  if(editIdx===null) return;
+  var u = units[editIdx];
+  if(!u || !u.gpsLat || !u.gpsLng){ alert('Esta unidad no tiene posición GPS disponible en este momento'); return; }
+  var latEl = document.getElementById('ed-'+campo+'-lat');
+  var lngEl = document.getElementById('ed-'+campo+'-lng');
+  var tagEl = document.getElementById('ed-'+campo+'-gps-tag');
+  if(latEl) latEl.value = u.gpsLat;
+  if(lngEl) lngEl.value = u.gpsLng;
+  var loc = u.gpsLoc || getApproxLocation(u.gpsLat,u.gpsLng);
+  if(tagEl) tagEl.textContent = '✓ Posición GPS capturada ('+loc+')';
+}
+
 // ── POPULATE cv-unit-list ────────────────────────────────────────────────────
 function populateCvUnitList(){
   var dl=document.getElementById('cv-unit-list');
@@ -1497,20 +1581,28 @@ function calAddTrip(){
   var tipo=uObj?uObj.tipo:'CAM';
   var fecha=citaCarga.slice(0,10);
   var status=fecha<=getTodayStr()?'active':'programado';
+  var origenLat=(document.getElementById('cv-origen-lat')||{}).value||null;
+  var origenLng=(document.getElementById('cv-origen-lng')||{}).value||null;
+  var destinoLat=(document.getElementById('cv-destino-lat')||{}).value||null;
+  var destinoLng=(document.getElementById('cv-destino-lng')||{}).value||null;
   trips.push({
     tripId:'trip_'+Date.now(),tipoViaje:currentTipoViaje,unitId:unitVal,tipo:tipo,
     cliente:cliente,origen:origen,destino:destino,citaCarga:citaCarga,citaDescarga:citaDescarga,
     operador:operador,tipoCarga:tipoCarga,costo:costo?'$'+parseFloat(costo).toLocaleString('es-MX'):'',
     cartaporte:cartaporte,obs:obs,fecha:fecha,etapa:'cargando',status:status,
     sinCarga:isSinCarga,sincargaTipo:sincargaTipo,paradas:paradas,
-    tipoEquipo:tipoEquipo,carga:carga,etapa:etapaInicial||'cargando'
+    tipoEquipo:tipoEquipo,carga:carga,etapa:etapaInicial||'cargando',
+    origenLat:origenLat?parseFloat(origenLat):null, origenLng:origenLng?parseFloat(origenLng):null,
+    destinoLat:destinoLat?parseFloat(destinoLat):null, destinoLng:destinoLng?parseFloat(destinoLng):null
   });
   saveAll();renderCalendar();renderBoard();renderStats();
   ['cv-unit-inp','cv-cliente-sel','cv-origen','cv-destino','cv-salida','cv-datetime',
-   'cv-cartaporte','cv-obs','cv-operador','cv-costo','cv-carga'].forEach(function(id){
+   'cv-cartaporte','cv-obs','cv-operador','cv-costo','cv-carga',
+   'cv-origen-lat','cv-origen-lng','cv-destino-lat','cv-destino-lng'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.value='';
   });
   var pl=document.getElementById('cv-paradas-list');if(pl)pl.innerHTML='';
+  ['cv-origen-gps-tag','cv-destino-gps-tag'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='';});
   var t=document.getElementById('toast-cal');
   if(t){t.style.display='block';setTimeout(function(){t.style.display='none';},2500);}
 }
@@ -2654,6 +2746,22 @@ function openEdit(idx){
   if(edOri) edOri.value = src.origen||'';
   var edDes = document.getElementById('ed-destino');
   if(edDes) edDes.value = src.destino||'';
+  // GPS coordinates already captured for this trip (if any)
+  var edOriLat = document.getElementById('ed-origen-lat'), edOriLng = document.getElementById('ed-origen-lng');
+  var edDesLat = document.getElementById('ed-destino-lat'), edDesLng = document.getElementById('ed-destino-lng');
+  var edOriTag = document.getElementById('ed-origen-gps-tag'), edDesTag = document.getElementById('ed-destino-gps-tag');
+  if(activeTrip && activeTrip.origenLat && activeTrip.origenLng){
+    if(edOriLat) edOriLat.value = activeTrip.origenLat; if(edOriLng) edOriLng.value = activeTrip.origenLng;
+    if(edOriTag) edOriTag.textContent = '✓ Posición GPS guardada';
+  } else {
+    if(edOriLat) edOriLat.value=''; if(edOriLng) edOriLng.value=''; if(edOriTag) edOriTag.textContent='';
+  }
+  if(activeTrip && activeTrip.destinoLat && activeTrip.destinoLng){
+    if(edDesLat) edDesLat.value = activeTrip.destinoLat; if(edDesLng) edDesLng.value = activeTrip.destinoLng;
+    if(edDesTag) edDesTag.textContent = '✓ Posición GPS guardada';
+  } else {
+    if(edDesLat) edDesLat.value=''; if(edDesLng) edDesLng.value=''; if(edDesTag) edDesTag.textContent='';
+  }
   var edSal = document.getElementById('ed-salida');
   if(edSal) edSal.value = activeTrip ? (activeTrip.citaCarga||'') : (u.salidaRaw||'');
   var edTCarga = document.getElementById('ed-tipo-carga');
@@ -2775,6 +2883,12 @@ function guardarCambios(){
     activeTrip.sinCarga = isSinCarga;
     activeTrip.cliente = isSinCarga ? '' : clienteVal;
     activeTrip.origen = origenVal;
+    var edOrigenLat = (document.getElementById('ed-origen-lat')||{}).value || '';
+    var edOrigenLng = (document.getElementById('ed-origen-lng')||{}).value || '';
+    var edDestinoLat = (document.getElementById('ed-destino-lat')||{}).value || '';
+    var edDestinoLng = (document.getElementById('ed-destino-lng')||{}).value || '';
+    if(edOrigenLat && edOrigenLng){ activeTrip.origenLat = parseFloat(edOrigenLat); activeTrip.origenLng = parseFloat(edOrigenLng); }
+    if(edDestinoLat && edDestinoLng){ activeTrip.destinoLat = parseFloat(edDestinoLat); activeTrip.destinoLng = parseFloat(edDestinoLng); }
     if(isMulti){
       activeTrip.paradas = paradas;
       activeTrip.destino = paradas.map(function(p){ return p.destino; }).join(' / ');
