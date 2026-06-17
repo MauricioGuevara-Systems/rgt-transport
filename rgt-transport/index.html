@@ -1145,6 +1145,7 @@ function fetchGpsData(){
     if(!Array.isArray(vehiculos)) return;
     console.log('[GPS DEBUG] Total vehiculos recibidos:', vehiculos.length);
     console.log('[GPS DEBUG] Primeros 5 nombres crudos:', vehiculos.slice(0,5).map(function(v){ return v.nombre || v.name || v.placa || '(sin nombre)'; }));
+    console.log('[GPS DEBUG] Objeto crudo completo (1er vehiculo):', JSON.stringify(vehiculos[0]));
 
     // Build uid -> list of {v, name, isPrimary} to resolve duplicates (truck vs thermo device)
     var byUid = {};
@@ -1172,6 +1173,9 @@ function fetchGpsData(){
       var lat = v.lat || v.latitud || 0;
       var lng = v.lng || v.longitud || 0;
       var activeTrip = getActiveTrip(uid);
+      if(uid==='3'||uid==='37'||uid==='41'){ // sample debug for a few units
+        console.log('[GPS DEBUG] uid:'+uid, 'motor:'+motor, 'vel:'+vel, 'activeTrip:'+(activeTrip?activeTrip.tripId:'NONE'), 'tripEtapa:'+(activeTrip?activeTrip.etapa:'-'));
+      }
       if(activeTrip){
         if(motor && vel > 5 && activeTrip.etapa === 'cargando'){
           activeTrip.etapa = 'transito';
