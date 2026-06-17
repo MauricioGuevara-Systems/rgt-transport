@@ -1144,13 +1144,12 @@ function fetchGpsData(){
   .then(function(vehiculos){
     if(!Array.isArray(vehiculos)) return;
     console.log('[GPS DEBUG] Total vehiculos recibidos:', vehiculos.length);
-    console.log('[GPS DEBUG] Primeros 5 nombres crudos:', vehiculos.slice(0,5).map(function(v){ return v.nombre || v.name || v.placa || '(sin nombre)'; }));
-    console.log('[GPS DEBUG] Objeto crudo completo (1er vehiculo):', JSON.stringify(vehiculos[0]));
+    console.log('[GPS DEBUG] Primeros 5 nombres crudos:', vehiculos.slice(0,5).map(function(v){ return v.Clave || v.nombre || v.name || v.placa || '(sin nombre)'; }));
 
     // Build uid -> list of {v, name, isPrimary} to resolve duplicates (truck vs thermo device)
     var byUid = {};
     vehiculos.forEach(function(v){
-      var name = (v.nombre || v.name || v.placa || '').trim();
+      var name = (v.Clave || v.nombre || v.name || v.placa || '').trim();
       var match = name.match(/^0*(\d+)/);
       if(!match) return;
       var uid = String(parseInt(match[1]));
@@ -1168,14 +1167,11 @@ function fetchGpsData(){
       var v = chosen.v;
       var u = units.find(function(x){ return x.id === uid; });
       if(!u || u.status === 'mant') return;
-      var motor = v.ignicion === true || v.ignicion === 1 || v.estado === 'encendido';
-      var vel = parseFloat(v.velocidad || v.speed || 0);
-      var lat = v.lat || v.latitud || 0;
-      var lng = v.lng || v.longitud || 0;
+      var motor = v.Encendido === true || v.StatusMotor === true || v.ignicion === true || v.ignicion === 1 || v.estado === 'encendido';
+      var vel = parseFloat(v.Velocidad ?? v.GPSVelocidad ?? v.velocidad ?? v.speed ?? 0);
+      var lat = v.Latitud ?? v.lat ?? v.latitud ?? 0;
+      var lng = v.Longitud ?? v.lng ?? v.longitud ?? 0;
       var activeTrip = getActiveTrip(uid);
-      if(uid==='3'||uid==='37'||uid==='41'){ // sample debug for a few units
-        console.log('[GPS DEBUG] uid:'+uid, 'motor:'+motor, 'vel:'+vel, 'activeTrip:'+(activeTrip?activeTrip.tripId:'NONE'), 'tripEtapa:'+(activeTrip?activeTrip.etapa:'-'));
-      }
       if(activeTrip){
         if(motor && vel > 5 && activeTrip.etapa === 'cargando'){
           activeTrip.etapa = 'transito';
