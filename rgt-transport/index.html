@@ -1204,6 +1204,9 @@ function fetchGpsData(){
       var lat = v.Latitud ?? v.lat ?? v.latitud ?? 0;
       var lng = v.Longitud ?? v.lng ?? v.longitud ?? 0;
       var activeTrip = getActiveTrip(uid);
+      if(uid==='48' || uid==='153'){
+        console.log('[GPSDBG]', 'uid:'+uid, 'candidatos:'+JSON.stringify(candidates.map(function(c){return {name:c.name, isPrimary:c.isPrimary};})), 'rawClave:'+chosen.name, 'motor:'+motor, 'vel:'+vel, 'lat:'+lat, 'lng:'+lng, 'activeTrip:'+(activeTrip?activeTrip.tripId:'NONE'), 'etapa:'+(activeTrip?activeTrip.etapa:'-'), 'status:'+(activeTrip?activeTrip.status:'-'));
+      }
       if(activeTrip){
         // Coordenadas reales capturadas al crear el viaje tienen prioridad sobre el diccionario de ciudades
         var origCoords = (activeTrip.origenLat && activeTrip.origenLng) ? [activeTrip.origenLat, activeTrip.origenLng]
@@ -2561,9 +2564,23 @@ function renderBoard(){
 
     // Route display
     var rutaTo = '→ '+(u.destino&&u.destino!=='TRANSITO'?u.destino:'—');
+    var nextParadaHtml = '';
     if(at && (at.tipoViaje==='repartos'||at.tipoViaje==='ciudades') && at.paradas && at.paradas.length){
-      var pend = at.paradas.filter(function(p){return !p.completada;}).length;
+      var pendientes = at.paradas.filter(function(p){return !p.completada;});
+      var pend = pendientes.length;
       rutaTo = '⊕ '+pend+' entrega'+(pend!==1?'s':'');
+      if(pend > 0){
+        // Siguiente entrega pendiente (la primera de la lista que no está completada)
+        var nextParada = pendientes[0];
+        if(nextParada.citaDescarga){
+          var npDate = new Date(nextParada.citaDescarga);
+          var npFmt = npDate.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})+' '+npDate.toLocaleDateString('es-MX',{day:'numeric',month:'short'});
+          var npVencida = npDate.getTime() < Date.now();
+          nextParadaHtml = '<div style="font-size:10px;color:'+(npVencida?'#e74c3c':'#888')+';">'+(nextParada.destino?nextParada.destino+': ':'')+npFmt+'</div>';
+        } else if(nextParada.destino){
+          nextParadaHtml = '<div style="font-size:10px;color:#888;">Próxima: '+nextParada.destino+'</div>';
+        }
+      }
     }
     var nextTripHtml = '';
     if(!at && u.nextTrip){
@@ -2600,7 +2617,7 @@ function renderBoard(){
       +'<div style="font-size:10px;color:var(--muted);">'+(u.operador||'Sin operador')+velTag+'</div></td>'
       +'<td><span class="badge '+sc+'">'+sl+'</span></td>'
       +'<td><div style="font-size:11px;color:var(--muted);">'+(u.origen||'')+'</div>'
-        +'<div style="font-size:12px;font-weight:600;">'+rutaTo+'</div>'+nextTripHtml+'</td>'
+        +'<div style="font-size:12px;font-weight:600;">'+rutaTo+'</div>'+nextParadaHtml+nextTripHtml+'</td>'
       +'<td>'+clienteHtml+'</td>'
       +'<td>'+etaHtml+'</td>'
       +'<td>'+etapaCell(u)+'</td>'
