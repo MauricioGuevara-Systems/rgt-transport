@@ -1204,6 +1204,9 @@ function fetchGpsData(){
       var lat = v.Latitud ?? v.lat ?? v.latitud ?? 0;
       var lng = v.Longitud ?? v.lng ?? v.longitud ?? 0;
       var activeTrip = getActiveTrip(uid);
+      if(vel > 10 && !activeTrip){
+        console.log('[GPSALL]', 'uid:'+uid, 'vel:'+vel, 'SIN VIAJE ACTIVO - no se puede cambiar etapa');
+      }
       if(activeTrip){
         // Coordenadas reales capturadas al crear el viaje tienen prioridad sobre el diccionario de ciudades
         var origCoords = (activeTrip.origenLat && activeTrip.origenLng) ? [activeTrip.origenLat, activeTrip.origenLng]
@@ -1217,6 +1220,10 @@ function fetchGpsData(){
         // Respaldo: cambio real de posicion entre ciclos del GPS (cada ~3min), para el caso en que
         // el proveedor reporte Velocidad:0 de forma poco confiable aun con el camion en movimiento real.
         var movedSinceLastCheck = (lat && lng && u.gpsLat && u.gpsLng) ? (haversineKm(lat,lng,u.gpsLat,u.gpsLng) > 1) : false;
+
+        if(vel > 10 || movedSinceLastCheck){
+          console.log('[GPSALL]', 'uid:'+uid, 'vel:'+vel, 'lat:'+lat, 'lng:'+lng, 'prevLat:'+u.gpsLat, 'prevLng:'+u.gpsLng, 'moved:'+movedSinceLastCheck, 'etapa:'+activeTrip.etapa, 'status:'+activeTrip.status, 'tripId:'+activeTrip.tripId);
+        }
 
         // ── CARGANDO -> TRANSITO ──
         // Regla dominante y simple: CUALQUIER unidad con velocidad GPS real > 15km/h se considera
