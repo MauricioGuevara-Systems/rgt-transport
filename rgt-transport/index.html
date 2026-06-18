@@ -1204,9 +1204,6 @@ function fetchGpsData(){
       var lat = v.Latitud ?? v.lat ?? v.latitud ?? 0;
       var lng = v.Longitud ?? v.lng ?? v.longitud ?? 0;
       var activeTrip = getActiveTrip(uid);
-      if(uid==='48' || uid==='153'){
-        console.log('[GPSDBG]', 'uid:'+uid, 'candidatos:'+JSON.stringify(candidates.map(function(c){return {name:c.name, isPrimary:c.isPrimary};})), 'rawClave:'+chosen.name, 'motor:'+motor, 'vel:'+vel, 'lat:'+lat, 'lng:'+lng, 'activeTrip:'+(activeTrip?activeTrip.tripId:'NONE'), 'etapa:'+(activeTrip?activeTrip.etapa:'-'), 'status:'+(activeTrip?activeTrip.status:'-'));
-      }
       if(activeTrip){
         // Coordenadas reales capturadas al crear el viaje tienen prioridad sobre el diccionario de ciudades
         var origCoords = (activeTrip.origenLat && activeTrip.origenLng) ? [activeTrip.origenLat, activeTrip.origenLng]
@@ -1217,26 +1214,23 @@ function fetchGpsData(){
         var distToDest   = (destCoords && lat && lng) ? haversineKm(lat,lng,destCoords[0],destCoords[1]) : null;
         var NEAR_KM = 8; // dentro de 8km de un punto se considera "ahi"
 
-        // Movimiento real detectado por cambio de posicion entre ciclos del GPS (cada ~3min).
-        // Algunos proveedores reportan Velocidad:0 de forma poco confiable aun con el camion en
-        // movimiento real, asi que esto sirve de respaldo independiente del campo de velocidad.
-        var movedSinceLastCheck = false;
-        if(lat && lng && u.gpsLat && u.gpsLng){
-          var deltaKm = haversineKm(lat,lng,u.gpsLat,u.gpsLng);
-          if(deltaKm > 1) movedSinceLastCheck = true; // >1km de cambio real entre lecturas
-        }
+        // Respaldo: cambio real de posicion entre ciclos del GPS (cada ~3min), para el caso en que
+        // el proveedor reporte Velocidad:0 de forma poco confiable aun con el camion en movimiento real.
+        var movedSinceLastCheck = (lat && lng && u.gpsLat && u.gpsLng) ? (haversineKm(lat,lng,u.gpsLat,u.gpsLng) > 1) : false;
 
         // ── CARGANDO -> TRANSITO ──
-        // Sale del estado "cargando" en cuanto deja de estar cerca del origen (si lo conocemos),
-        // o en su defecto en cuanto el GPS detecta movimiento real (vel > 15km/h, o cambio de
-        // posicion real entre ciclos aunque la velocidad reportada sea 0/poco confiable).
+        // Regla dominante y simple: CUALQUIER unidad con velocidad GPS real > 15km/h se considera
+        // en movimiento y pasa a "transito", sin condicionarlo al campo de motor/ignición (poco
+        // confiable en algunos dispositivos) ni a que el origen tenga coordenadas conocidas.
+        // Tambien pasa a transito si la posicion cambio >1km entre ciclos (respaldo para proveedores
+        // con velocidad poco confiable), o si se alejo del origen conocido más de 8km.
         if(activeTrip.etapa === 'cargando'){
-          var leftOrigin = (distFromOrig !== null) ? (distFromOrig > NEAR_KM) : ((motor && vel > 15) || movedSinceLastCheck);
+          var leftOrigin = (vel > 15) || movedSinceLastCheck || (distFromOrig !== null && distFromOrig > NEAR_KM);
           if(leftOrigin){
             activeTrip.etapa = 'transito';
             u.etapa = 'transito';
             u.gpsMotorOffAt = null;
-            bitacora.unshift({id:uid,de:'cargando',a:'transito',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:(distFromOrig!==null?'GPS: '+Math.round(distFromOrig)+'km del origen':(movedSinceLastCheck?'GPS: posición cambió, en movimiento':'GPS: en movimiento '+Math.round(vel)+'km/h')),user:'GPS'});
+            bitacora.unshift({id:uid,de:'cargando',a:'transito',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:(vel>15?'GPS: en movimiento '+Math.round(vel)+'km/h':(movedSinceLastCheck?'GPS: cambio de posición detectado':'GPS: '+Math.round(distFromOrig)+'km del origen')),user:'GPS'});
             saveAll();
           }
         }
