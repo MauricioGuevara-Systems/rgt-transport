@@ -1217,16 +1217,26 @@ function fetchGpsData(){
         var distToDest   = (destCoords && lat && lng) ? haversineKm(lat,lng,destCoords[0],destCoords[1]) : null;
         var NEAR_KM = 8; // dentro de 8km de un punto se considera "ahi"
 
+        // Movimiento real detectado por cambio de posicion entre ciclos del GPS (cada ~3min).
+        // Algunos proveedores reportan Velocidad:0 de forma poco confiable aun con el camion en
+        // movimiento real, asi que esto sirve de respaldo independiente del campo de velocidad.
+        var movedSinceLastCheck = false;
+        if(lat && lng && u.gpsLat && u.gpsLng){
+          var deltaKm = haversineKm(lat,lng,u.gpsLat,u.gpsLng);
+          if(deltaKm > 1) movedSinceLastCheck = true; // >1km de cambio real entre lecturas
+        }
+
         // ── CARGANDO -> TRANSITO ──
         // Sale del estado "cargando" en cuanto deja de estar cerca del origen (si lo conocemos),
-        // o en su defecto en cuanto el GPS detecta movimiento real (vel > 15km/h con motor).
+        // o en su defecto en cuanto el GPS detecta movimiento real (vel > 15km/h, o cambio de
+        // posicion real entre ciclos aunque la velocidad reportada sea 0/poco confiable).
         if(activeTrip.etapa === 'cargando'){
-          var leftOrigin = (distFromOrig !== null) ? (distFromOrig > NEAR_KM) : (motor && vel > 15);
+          var leftOrigin = (distFromOrig !== null) ? (distFromOrig > NEAR_KM) : ((motor && vel > 15) || movedSinceLastCheck);
           if(leftOrigin){
             activeTrip.etapa = 'transito';
             u.etapa = 'transito';
             u.gpsMotorOffAt = null;
-            bitacora.unshift({id:uid,de:'cargando',a:'transito',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:(distFromOrig!==null?'GPS: '+Math.round(distFromOrig)+'km del origen':'GPS: en movimiento '+Math.round(vel)+'km/h'),user:'GPS'});
+            bitacora.unshift({id:uid,de:'cargando',a:'transito',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:(distFromOrig!==null?'GPS: '+Math.round(distFromOrig)+'km del origen':(movedSinceLastCheck?'GPS: posición cambió, en movimiento':'GPS: en movimiento '+Math.round(vel)+'km/h')),user:'GPS'});
             saveAll();
           }
         }
