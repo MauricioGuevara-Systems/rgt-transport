@@ -335,8 +335,8 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
 
     <!-- ACTUALIZAR -->
     <div class="view" id="view-admin">
-      <div id="usel-panel"><div id="usel-list"></div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;"><div class="section-lbl" style="margin:0;">Selecciona una unidad para actualizar</div><input id="usel-search" placeholder="Buscar número..." oninput="filterUsel(this.value)" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:5px;font-size:13px;outline:none;width:180px;font-family:'DM Sans',sans-serif;background:#f8f9fb;"/></div>
+      <div id="usel-panel">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;"><div class="section-lbl" style="margin:0;">Selecciona una unidad para actualizar</div><input id="usel-search" placeholder="Buscar número o cliente..." oninput="filterUsel(this.value)" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:5px;font-size:13px;outline:none;width:200px;font-family:'DM Sans',sans-serif;background:#f8f9fb;"/></div>
         <div class="unit-select-list" id="unit-select-list"></div>
       </div>
       <div class="edit-form" id="edit-form">
@@ -1109,8 +1109,8 @@ function finalizarViaje(tripId){
 
 
 function filterUsel(q){
-  q=(q||'').toLowerCase();
-  document.querySelectorAll('.usel-card').forEach(function(c){
+  q=(q||'').toLowerCase().trim();
+  document.querySelectorAll('.usel-item').forEach(function(c){
     var uid=(c.getAttribute('data-uid')||'').toLowerCase();
     var cli=(c.getAttribute('data-cli')||'').toLowerCase();
     c.style.display=(!q||uid.includes(q)||cli.includes(q))?'':'none';
@@ -1221,6 +1221,22 @@ function fetchGpsData(){
         var enZonaExcluida = (lat && lng) && BASES.some(function(b){
           return haversineKm(lat, lng, b.lat, b.lng) <= BASE_RADIO_KM;
         });
+
+        // ── CARGANDO -> PROGRAMADO (retrograde) ──
+        // Si el viaje dice "cargando" pero la ventana de cita de carga aun no ha comenzado
+        // (mas de 2 horas antes de la cita), el camion no puede estar cargando — poner "programado".
+        // Esto corrige viajes viejos importados del Excel que tenian etapa:'cargando' por defecto.
+        if(activeTrip.etapa === 'cargando' && activeTrip.citaCarga){
+          var citaCargaMsCheck = new Date(activeTrip.citaCarga).getTime();
+          var ahoraCheck = Date.now();
+          var ventana2hCheck = 2 * 60 * 60000;
+          if(ahoraCheck < citaCargaMsCheck - ventana2hCheck){
+            // Todavia faltan mas de 2 horas para la cita — no puede estar cargando
+            activeTrip.etapa = 'programado';
+            u.etapa = 'programado';
+            saveAll();
+          }
+        }
 
         // ── PROGRAMADO -> CARGANDO ──
         // Condiciones para marcar como "Cargando":
@@ -2249,15 +2265,20 @@ function renderTicker(){
 }
 
 function renderUnitSelectList(){
-  document.getElementById('unit-select-list').innerHTML = units.map((u,i)=>`
-    <div class="usel-item" onclick="openEdit(${i})">
+  var at_map = {};
+  units.forEach(function(u){ var at=getActiveTrip(u.id); at_map[u.id]=at; });
+  document.getElementById('unit-select-list').innerHTML = units.map((u,i)=>{
+    var at = at_map[u.id];
+    var cli = at ? (at.sinCarga?'Sin carga':(at.cliente||u.cliente||'')) : (u.cliente||'');
+    var dest = at ? (at.destino||u.destino||'') : (u.destino||'');
+    return `<div class="usel-item" data-uid="${u.id}" data-cli="${cli.toLowerCase()}" onclick="openEdit(${i})">
       <div>
         <div class="usel-id">${unitLabel(u)} <span style="font-size:10px;color:var(--muted);font-family:'DM Sans',sans-serif">${u.oficina}</span></div>
-        <div class="usel-info">${u.cliente} · ${u.origen} → ${u.destino}</div>
+        <div class="usel-info">${cli} · ${u.origen||''} → ${dest}</div>
       </div>
       <span class="badge ${SC[u.status]}">${SL[u.status]}</span>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function onEdTipoViajeChange(){
