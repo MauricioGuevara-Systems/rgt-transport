@@ -1673,8 +1673,8 @@ function calAddTrip(){
   trips.push({
     tripId:'trip_'+Date.now(),tipoViaje:currentTipoViaje,unitId:unitVal,tipo:tipo,
     cliente:clienteFinal,origen:origen,destino:isMant?'TALLER':destino,citaCarga:citaCarga,citaDescarga:citaDescarga,
-    operador:operador,tipoCarga:tipoCarga,costo:'',
-    cartaporte:'',obs:obs,fecha:fecha,etapa:etapaFinal,status:status,
+    operador:operador,tipoCarga:tipoCarga,costo:costo?'$'+parseFloat(costo).toLocaleString('es-MX'):'',
+    cartaporte:cartaporte,obs:obs,fecha:fecha,etapa:etapaFinal,status:status,
     sinCarga:isSinCarga,sincargaTipo:sincargaTipo,paradas:paradas,
     tipoEquipo:tipoEquipo,carga:carga,
     origenLat:origenLat?parseFloat(origenLat):null, origenLng:origenLng?parseFloat(origenLng):null,
