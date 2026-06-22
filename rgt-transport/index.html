@@ -128,7 +128,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .btn-primary:active{transform:scale(0.98);}
 .toast{display:none;color:var(--green);font-size:11px;text-align:center;margin-top:8px;letter-spacing:1px;font-weight:600;}
 
-.unit-select-list{display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto;}
+.unit-select-list{display:flex;flex-direction:column;gap:6px;max-height:calc(100vh - 160px);overflow-y:auto;}
 .usel-item{padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;transition:all 0.15s;display:flex;justify-content:space-between;align-items:center;}
 .usel-item:hover{border-color:var(--blue);background:var(--blue3);}
 .usel-id{font-family:'Oswald',sans-serif;font-size:14px;color:var(--blue);letter-spacing:1px;}
@@ -357,6 +357,7 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
             </div>
             <div class="field" id="ed-etapa-field"><label>Etapa del viaje</label>
               <select id="ed-etapa">
+                <option value="programado">Programado</option>
                 <option value="cargando">Cargando</option>
                 <option value="transito">En Tránsito</option>
                 <option value="arribo">En Destino</option>
@@ -623,9 +624,10 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
             <div class="field">
               <label>Etapa inicial</label>
               <select id="cv-etapa-inicial" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;">
-                <option value="cargando">Cargando</option>
-                <option value="transito">En Tránsito</option>
-                <option value="arribo">En Destino</option>
+                <option value="programado">Programado (GPS detecta automático)</option>
+                <option value="cargando">Cargando (forzar manual)</option>
+                <option value="transito">En Tránsito (forzar manual)</option>
+                <option value="arribo">En Destino (forzar manual)</option>
               </select>
             </div>
 
@@ -2781,8 +2783,6 @@ function renderCalendar(){
         calDayTrips.forEach(function(t){
           var tidx = (typeof trips !== 'undefined' ? trips : calTrips).indexOf(t);
           var ccolor = getClientColor(t.cliente);
-          grid += '<div class="cal-trip" style="border-left:3px solid '+ccolor+';background:'+ccolor+'18;" onclick="openCalModal('+tidx+')">';
-          grid += '<div style="font-weight:700;font-size:11px;color:'+ccolor+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;">'+t.cliente+'</div>';
           var isMantBlock = t.tipoViaje === 'mant' || t.cliente === 'MANTENIMIENTO';
           if(isMantBlock){
             grid += '<div class="cal-trip" style="border-left:3px solid #f39c12;background:#fff8e1;" onclick="openCalModal('+tidx+')">';
@@ -2792,15 +2792,13 @@ function renderCalendar(){
             if(mantFin) grid += '<div style="font-size:9px;color:#e67e22;font-weight:700;">Fin: '+mantFin+'</div>';
             grid += '</div>';
           } else {
-          var cargaHora = t.citaCarga ? new Date(t.citaCarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}) : (t.salida||'');
-          var descargaHora = t.citaDescarga ? new Date(t.citaDescarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}) : (t.eta||'');
-          if(cargaHora){
-            grid += '<div style="font-size:9px;color:#555;background:rgba(255,255,255,0.6);border-radius:3px;padding:1px 4px;margin-bottom:2px;">Carga: '+cargaHora+'</div>';
-          }
-          if(descargaHora){
-            grid += '<div style="font-size:9px;font-weight:700;color:'+ccolor+';background:rgba(255,255,255,0.8);border-radius:3px;padding:1px 4px;border:1px solid '+ccolor+'33;">Descarga: '+descargaHora+'</div>';
-          }
-          grid += '</div>';
+            grid += '<div class="cal-trip" style="border-left:3px solid '+ccolor+';background:'+ccolor+'18;" onclick="openCalModal('+tidx+')">';
+            grid += '<div style="font-weight:700;font-size:11px;color:'+ccolor+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;">'+t.cliente+'</div>';
+            var cargaHora = t.citaCarga ? new Date(t.citaCarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}) : (t.salida||'');
+            var descargaHora = t.citaDescarga ? new Date(t.citaDescarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}) : (t.eta||'');
+            if(cargaHora) grid += '<div style="font-size:9px;color:#555;background:rgba(255,255,255,0.6);border-radius:3px;padding:1px 4px;margin-bottom:2px;">Carga: '+cargaHora+'</div>';
+            if(descargaHora) grid += '<div style="font-size:9px;font-weight:700;color:'+ccolor+';background:rgba(255,255,255,0.8);border-radius:3px;padding:1px 4px;border:1px solid '+ccolor+'33;">Descarga: '+descargaHora+'</div>';
+            grid += '</div>';
           }
         });
       } else {
