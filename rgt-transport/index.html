@@ -215,6 +215,7 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
 
 /* ── ETAPA ── */
 .etapa-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+.etapa-programado{background:#f3e5f5;color:#6a1b9a;border:1px solid #ce93d8;}
 .etapa-cargando{background:#fff3e0;color:#e65100;border:1px solid #ffb74d;}
 .etapa-transito{background:#e3f2fd;color:#1565c0;border:1px solid #64b5f6;}
 .etapa-arribo{background:#e8f5e9;color:#2e7d32;border:1px solid #81c784;}
@@ -530,6 +531,7 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
                 <option value="repartos">Repartos (misma ciudad)</option>
                 <option value="ciudades">Varias ciudades</option>
                 <option value="vacio">Sin carga</option>
+                <option value="mant">🔧 Mantenimiento</option>
               </select>
             </div>
 
@@ -988,8 +990,8 @@ const OPERADORES = [
   {id:'208', nombre:'WILIAN SALAZAR GONZALEZ'}
 ];
 // ── ETAPA ──
-const ETAPA_LABEL = {cargando:'Cargando',transito:'En Tránsito',arribo:'En Destino',na:'—'};
-const ETAPA_CSS   = {cargando:'etapa-cargando',transito:'etapa-transito',arribo:'etapa-arribo',na:'etapa-na'};
+const ETAPA_LABEL = {programado:'Programado',cargando:'Cargando',transito:'En Tránsito',arribo:'En Destino',mant:'Mant.',na:'—'};
+const ETAPA_CSS   = {programado:'etapa-programado',cargando:'etapa-cargando',transito:'etapa-transito',arribo:'etapa-arribo',mant:'etapa-na',na:'etapa-na'};
 
 function etapaCell(u){
   if(u.status==='mant') return '<span class="etapa-badge etapa-na" style="background:#fff0f0;color:#c0392b;border:2px solid #e74c3c;font-weight:800;">MANT</span>';
@@ -1208,53 +1210,107 @@ function fetchGpsData(){
         // el proveedor reporte Velocidad:0 de forma poco confiable aun con el camion en movimiento real.
         var movedSinceLastCheck = (lat && lng && u.gpsLat && u.gpsLng) ? (haversineKm(lat,lng,u.gpsLat,u.gpsLng) > 1) : false;
 
+        // ── ZONAS DE EXCLUSION ──
+        // Coordenadas de bases donde NUNCA se considera "Cargando" aunque el camion este parado.
+        var BASES = [
+          {nombre:'Base MTY',   lat:25.71258272, lng:-100.23906738},
+          {nombre:'Base CDMX1', lat:19.72229400,  lng:-99.21129700},
+          {nombre:'Base CDMX2', lat:19.71136439,  lng:-99.22950000}
+        ];
+        var BASE_RADIO_KM = 3; // 3km alrededor de cada base
+        var enZonaExcluida = (lat && lng) && BASES.some(function(b){
+          return haversineKm(lat, lng, b.lat, b.lng) <= BASE_RADIO_KM;
+        });
+
+        // ── PROGRAMADO -> CARGANDO ──
+        // Condiciones para marcar como "Cargando":
+        // 1. Motor encendido y velocidad < 5 km/h (parado fisicamente)
+        // 2. Dentro de la ventana de ±2 horas de la cita de carga
+        // 3. NO esta en una zona de exclusion (base MTY/CDMX)
+        // 4. Lleva al menos 20 minutos parado en el mismo punto (evita gasolineras/restaurantes rapidos)
+        if(activeTrip.etapa === 'programado'){
+          var citaCargaMs = activeTrip.citaCarga ? new Date(activeTrip.citaCarga).getTime() : 0;
+          var ahora = Date.now();
+          var ventana2h = 2 * 60 * 60000; // 2 horas en ms
+          var dentroDeVentana = citaCargaMs && (ahora >= citaCargaMs - ventana2h) && (ahora <= citaCargaMs + ventana2h);
+          var paradoConMotor = motor && vel < 5 && lat && lng;
+          // Tiempo minimo parado: usamos gpsMotorOffAt como timestamp de cuando empezo a estar parado
+          if(paradoConMotor && !u.gpsParadoDesde) u.gpsParadoDesde = Date.now();
+          if(!paradoConMotor || vel > 5) u.gpsParadoDesde = null;
+          var paradoMin20 = u.gpsParadoDesde && (Date.now() - u.gpsParadoDesde >= 20*60000);
+          if(paradoConMotor && dentroDeVentana && !enZonaExcluida && paradoMin20){
+            activeTrip.etapa = 'cargando';
+            u.etapa = 'cargando';
+            u.gpsParadoDesde = null;
+            bitacora.unshift({id:uid,de:'programado',a:'cargando',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'GPS: parado 20min en ventana de cita de carga',user:'GPS'});
+            saveAll();
+          }
+        } else {
+          u.gpsParadoDesde = null; // limpiar si ya no esta en programado
+        }
+
         // ── CARGANDO -> TRANSITO ──
         // Regla dominante y simple: CUALQUIER unidad con velocidad GPS real > 15km/h se considera
         // en movimiento y pasa a "transito", sin condicionarlo al campo de motor/ignición (poco
         // confiable en algunos dispositivos) ni a que el origen tenga coordenadas conocidas.
         // Tambien pasa a transito si la posicion cambio >1km entre ciclos (respaldo para proveedores
         // con velocidad poco confiable), o si se alejo del origen conocido más de 8km.
-        if(activeTrip.etapa === 'cargando'){
+        if(activeTrip.etapa === 'cargando' || activeTrip.etapa === 'programado'){
+          var prevEtapa = activeTrip.etapa;
           var leftOrigin = (vel > 15) || movedSinceLastCheck || (distFromOrig !== null && distFromOrig > NEAR_KM);
           if(leftOrigin){
             activeTrip.etapa = 'transito';
             u.etapa = 'transito';
             u.gpsMotorOffAt = null;
-            bitacora.unshift({id:uid,de:'cargando',a:'transito',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:(vel>15?'GPS: en movimiento '+Math.round(vel)+'km/h':(movedSinceLastCheck?'GPS: cambio de posición detectado':'GPS: '+Math.round(distFromOrig)+'km del origen')),user:'GPS'});
+            bitacora.unshift({id:uid,de:prevEtapa,a:'transito',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:(vel>15?'GPS: en movimiento '+Math.round(vel)+'km/h':(movedSinceLastCheck?'GPS: cambio de posición detectado':'GPS: '+Math.round(distFromOrig)+'km del origen')),user:'GPS'});
             saveAll();
           }
         }
         // ── TRANSITO -> ARRIBO ──
-        // Llega a "arribo" si esta cerca del destino (por coordenadas conocidas, o por nombre de
-        // ciudad aproximado via getApproxLocation), y el motor lleva apagado un rato ahi (evita
-        // marcar arribo por una parada corta en ruta).
+        // Misma logica que Programado->Cargando pero para la descarga:
+        // parado 20min en ventana de ±2h de citaDescarga, fuera de zonas de exclusion.
+        // Si no hay citaDescarga, usa la deteccion por proximidad al destino + motor apagado.
         else if(activeTrip.etapa === 'transito'){
-          var nearDestByCoords = (distToDest !== null) ? (distToDest <= NEAR_KM) : false;
-          var nearDestByName = false;
-          if(!nearDestByCoords && lat && lng && activeTrip.destino){
-            var destCity = activeTrip.destino.toUpperCase();
-            var currentCity = getApproxLocation(lat,lng).toUpperCase();
-            nearDestByName = currentCity && (destCity.includes(currentCity.split(' ')[0]) || currentCity.includes(destCity.split(' ')[0]));
-          }
-          var nearDest = nearDestByCoords || nearDestByName;
-          // Tambien sale de "transito" si volvio a quedar muy cerca del origen otra vez (ida y vuelta corta)
-          var backAtOrigin = (distFromOrig !== null) ? (distFromOrig <= NEAR_KM) : false;
+          var citaDescMs = activeTrip.citaDescarga ? new Date(activeTrip.citaDescarga).getTime() : 0;
+          var ventana2hDesc = 2 * 60 * 60000;
+          var enVentanaDesc = citaDescMs && (Date.now() >= citaDescMs - ventana2hDesc) && (Date.now() <= citaDescMs + ventana2hDesc);
+          var paradoDesc = vel < 5 && lat && lng;
 
-          if(!motor && nearDest){
-            if(!u.gpsMotorOffAt){ u.gpsMotorOffAt = Date.now(); }
-            else if(Date.now()-u.gpsMotorOffAt >= 1200000){
-              activeTrip.etapa = 'arribo'; u.etapa = 'arribo'; u.gpsMotorOffAt = null;
-              bitacora.unshift({id:uid,de:'transito',a:'arribo',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'GPS: 20min apagado cerca del destino',user:'GPS'});
-              saveAll();
+          if(citaDescMs){
+            // Con cita de descarga: misma logica que carga — parado 20min en ventana, fuera de bases
+            if(paradoDesc && enVentanaDesc && !enZonaExcluida){
+              if(!u.gpsParadoDescDesde) u.gpsParadoDescDesde = Date.now();
+              if(Date.now() - u.gpsParadoDescDesde >= 20*60000){
+                activeTrip.etapa = 'arribo'; u.etapa = 'arribo';
+                u.gpsParadoDescDesde = null; u.gpsMotorOffAt = null;
+                bitacora.unshift({id:uid,de:'transito',a:'arribo',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'GPS: parado 20min en ventana de cita de descarga',user:'GPS'});
+                saveAll();
+              }
+            } else if(!paradoDesc || vel > 5) {
+              u.gpsParadoDescDesde = null;
             }
-          } else if(backAtOrigin){
-            u.gpsMotorOffAt = null; // sigue en ruta, no cuenta como llegada
           } else {
-            u.gpsMotorOffAt = null;
+            // Sin cita de descarga: usar proximidad al destino + motor apagado 20min
+            var nearDestByCoords = (distToDest !== null) ? (distToDest <= NEAR_KM) : false;
+            var nearDestByName = false;
+            if(!nearDestByCoords && lat && lng && activeTrip.destino){
+              var destCity = activeTrip.destino.toUpperCase();
+              var currentCity = getApproxLocation(lat,lng).toUpperCase();
+              nearDestByName = currentCity && (destCity.includes(currentCity.split(' ')[0]) || currentCity.includes(destCity.split(' ')[0]));
+            }
+            var nearDest = nearDestByCoords || nearDestByName;
+            if(!motor && nearDest){
+              if(!u.gpsMotorOffAt){ u.gpsMotorOffAt = Date.now(); }
+              else if(Date.now()-u.gpsMotorOffAt >= 1200000){
+                activeTrip.etapa = 'arribo'; u.etapa = 'arribo'; u.gpsMotorOffAt = null;
+                bitacora.unshift({id:uid,de:'transito',a:'arribo',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'GPS: 20min apagado cerca del destino',user:'GPS'});
+                saveAll();
+              }
+            } else { u.gpsMotorOffAt = null; }
           }
-        }
-        if(motor && u.gpsMotorOffAt) u.gpsMotorOffAt = null;
-      }
+          if(motor && u.gpsMotorOffAt) u.gpsMotorOffAt = null;
+        } // end else if transito
+      } // end if activeTrip
       u.gpsMotor = motor; u.gpsVel = vel; u.gpsLat = lat; u.gpsLng = lng;
       if(lat && lng){ u.gpsLoc = getApproxLocation(lat,lng); var at3=getActiveTrip(uid); if(at3){at3.gpsLat=lat;at3.gpsLng=lng;} }
     });
@@ -1338,7 +1394,7 @@ function onTipoViajeSelChange(){
 }
 function setTipoViaje(tipo){
   currentTipoViaje = tipo;
-  ['directo','repartos','ciudades','vacio'].forEach(function(t){
+  ['directo','repartos','ciudades','vacio','mant'].forEach(function(t){
     var btn = document.getElementById('btn-tipo-'+t);
     if(btn){ btn.className = 'tipo-btn'+(t===tipo?' tipo-active':''); }
   });
@@ -1347,12 +1403,33 @@ function setTipoViaje(tipo){
   var el = function(id){ return document.getElementById(id); };
   var isSinCarga = tipo==='vacio';
   var isMulti = tipo==='repartos'||tipo==='ciudades';
-  if(el('cv-cliente-wrap'))  el('cv-cliente-wrap').style.display  = isSinCarga?'none':'';
-  if(el('cv-sincarga-wrap')) el('cv-sincarga-wrap').style.display = isSinCarga?'':'none';
-  if(el('cv-paradas-wrap'))  el('cv-paradas-wrap').style.display  = isMulti?'':'none';
-  if(el('cv-destino-wrap'))  el('cv-destino-wrap').style.display  = isMulti?'none':'';
-  if(el('cv-descarga-wrap')) el('cv-descarga-wrap').style.display = isMulti?'none':'';
-  if(el('cv-paradas-lbl'))   el('cv-paradas-lbl').textContent     = tipo==='repartos'?'ENTREGAS':'CIUDADES / PARADAS';
+  var isMant = tipo==='mant';
+  // When mant: hide everything except dates and obs
+  var hideForMant = ['cv-cliente-wrap','cv-sincarga-wrap','cv-paradas-wrap','cv-destino-wrap','cv-origen','cv-origen-lat','cv-origen-lng'];
+  if(isMant){
+    if(el('cv-cliente-wrap'))  el('cv-cliente-wrap').style.display  = 'none';
+    if(el('cv-sincarga-wrap')) el('cv-sincarga-wrap').style.display = 'none';
+    if(el('cv-paradas-wrap'))  el('cv-paradas-wrap').style.display  = 'none';
+    if(el('cv-destino-wrap'))  el('cv-destino-wrap').style.display  = 'none';
+    if(el('cv-descarga-wrap')) el('cv-descarga-wrap').style.display = '';
+    // Change labels for mant context
+    var cargaLbl = el('cv-salida') && el('cv-salida').previousElementSibling;
+    var descLbl  = el('cv-datetime') && el('cv-datetime').previousElementSibling;
+    if(cargaLbl && cargaLbl.tagName==='LABEL') cargaLbl.textContent = 'Inicio mantenimiento';
+    if(descLbl  && descLbl.tagName==='LABEL')  descLbl.textContent  = 'Fin estimado mantenimiento';
+  } else {
+    if(el('cv-cliente-wrap'))  el('cv-cliente-wrap').style.display  = isSinCarga?'none':'';
+    if(el('cv-sincarga-wrap')) el('cv-sincarga-wrap').style.display = isSinCarga?'':'none';
+    if(el('cv-paradas-wrap'))  el('cv-paradas-wrap').style.display  = isMulti?'':'none';
+    if(el('cv-destino-wrap'))  el('cv-destino-wrap').style.display  = isMulti?'none':'';
+    if(el('cv-descarga-wrap')) el('cv-descarga-wrap').style.display = isMulti?'none':'';
+    // Restore labels
+    var cargaLbl2 = el('cv-salida') && el('cv-salida').previousElementSibling;
+    var descLbl2  = el('cv-datetime') && el('cv-datetime').previousElementSibling;
+    if(cargaLbl2 && cargaLbl2.tagName==='LABEL') cargaLbl2.textContent = 'Cita de carga ⬆';
+    if(descLbl2  && descLbl2.tagName==='LABEL')  descLbl2.textContent  = 'Cita de descarga 🕐';
+  }
+  if(el('cv-paradas-lbl')) el('cv-paradas-lbl').textContent = tipo==='repartos'?'ENTREGAS':'CIUDADES / PARADAS';
 }
 
 function addParada(){
@@ -1571,7 +1648,8 @@ function calAddTrip(){
   var costo=(document.getElementById('cv-costo')||{}).value||'';
   var obs=(document.getElementById('cv-obs')||{}).value||'';
   var sincargaTipo=isSinCarga?((document.getElementById('cv-sincarga-tipo')||{}).value||'reposicion'):'';
-  if(!citaCarga){alert('Agrega la cita de carga');return;}
+  var isMant = currentTipoViaje==='mant';
+  if(!citaCarga){alert('Agrega la fecha de inicio');return;}
   var paradas=[];
   if(isMulti){
     document.querySelectorAll('#cv-paradas-list > div').forEach(function(row){
@@ -1586,20 +1664,26 @@ function calAddTrip(){
   var tipo=uObj?uObj.tipo:'CAM';
   var fecha=citaCarga.slice(0,10);
   var status=fecha<=getTodayStr()?'active':'programado';
+  var etapaFinal = isMant ? 'mant' : (etapaInicial||'programado');
+  var clienteFinal = isMant ? 'MANTENIMIENTO' : cliente;
   var origenLat=(document.getElementById('cv-origen-lat')||{}).value||null;
   var origenLng=(document.getElementById('cv-origen-lng')||{}).value||null;
   var destinoLat=(document.getElementById('cv-destino-lat')||{}).value||null;
   var destinoLng=(document.getElementById('cv-destino-lng')||{}).value||null;
   trips.push({
     tripId:'trip_'+Date.now(),tipoViaje:currentTipoViaje,unitId:unitVal,tipo:tipo,
-    cliente:cliente,origen:origen,destino:destino,citaCarga:citaCarga,citaDescarga:citaDescarga,
-    operador:operador,tipoCarga:tipoCarga,costo:costo?'$'+parseFloat(costo).toLocaleString('es-MX'):'',
-    cartaporte:cartaporte,obs:obs,fecha:fecha,etapa:'cargando',status:status,
+    cliente:clienteFinal,origen:origen,destino:isMant?'TALLER':destino,citaCarga:citaCarga,citaDescarga:citaDescarga,
+    operador:operador,tipoCarga:tipoCarga,costo:'',
+    cartaporte:'',obs:obs,fecha:fecha,etapa:etapaFinal,status:status,
     sinCarga:isSinCarga,sincargaTipo:sincargaTipo,paradas:paradas,
-    tipoEquipo:tipoEquipo,carga:carga,etapa:etapaInicial||'cargando',
+    tipoEquipo:tipoEquipo,carga:carga,
     origenLat:origenLat?parseFloat(origenLat):null, origenLng:origenLng?parseFloat(origenLng):null,
     destinoLat:destinoLat?parseFloat(destinoLat):null, destinoLng:destinoLng?parseFloat(destinoLng):null
   });
+  // If mant and today, update unit status immediately
+  if(isMant && status==='active' && uObj){
+    uObj.status='mant'; uObj.etapa='mant'; uObj.mantObs=obs;
+  }
   saveAll();renderCalendar();renderBoard();renderStats();
   ['cv-unit-inp','cv-cliente-sel','cv-origen','cv-destino','cv-salida','cv-datetime',
    'cv-cartaporte','cv-obs','cv-operador','cv-costo','cv-carga',
@@ -2005,6 +2089,28 @@ function renderBoard(){
       etaHtml += '<div style="font-size:10px;color:'+col2+';">cita: '+cf+'</div>';
     }
 
+    // ── BADGE DE ALERTA: sistema no ha detectado parada en ventana de cita ──
+    if(at && !u.nextTrip){
+      var ahora2 = Date.now();
+      var ventana2h2 = 2*60*60000;
+      var citaCargaMs2 = at.citaCarga ? new Date(at.citaCarga).getTime() : 0;
+      var citaDescMs2  = at.citaDescarga ? new Date(at.citaDescarga).getTime() : 0;
+      var enVentanaCarga = citaCargaMs2 && at.etapa==='programado' && (ahora2 >= citaCargaMs2-ventana2h2) && (ahora2 <= citaCargaMs2+ventana2h2);
+      var enVentanaDesc  = citaDescMs2  && at.etapa==='transito'   && (ahora2 >= citaDescMs2-ventana2h2)  && (ahora2 <= citaDescMs2+ventana2h2);
+      if(enVentanaCarga || enVentanaDesc){
+        var citaAlerta = enVentanaCarga ? at.citaCarga : at.citaDescarga;
+        var tipoAlerta = enVentanaCarga ? 'Carga' : 'Descarga';
+        var citaMs3 = new Date(citaAlerta).getTime();
+        var ventanaInicio = new Date(citaMs3 - ventana2h2).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false});
+        var ventanaFin    = new Date(citaMs3 + ventana2h2).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false});
+        var vencida = ahora2 > citaMs3 + ventana2h2;
+        var alertColor = vencida ? '#e74c3c' : '#f39c12';
+        etaHtml += '<div style="font-size:9px;font-weight:700;color:'+alertColor+';background:'+alertColor+'15;border:1px solid '+alertColor+'66;border-radius:3px;padding:3px 5px;margin-top:3px;line-height:1.4;">'+
+          '⚠ Sistema no ha detectado '+tipoAlerta+'<br>en ventana '+ventanaInicio+' – '+ventanaFin+
+          '</div>';
+      }
+    }
+
     // GPS tags
     var gpsTag = u.gpsMotor!==undefined ? '<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:'+(u.gpsMotor?'#d4edda':'#f8d7da')+';color:'+(u.gpsMotor?'#155724':'#721c24')+';">'+(u.gpsMotor?'▶':'■')+'</span>' : '';
     var velTag = u.gpsVel>0 ? ' <span style="font-size:9px;color:#1a56db;font-weight:600;">'+Math.round(u.gpsVel)+'km/h</span>' : '';
@@ -2082,7 +2188,7 @@ function renderStats(){
   const sb = document.getElementById('statsbar');
   var todayStr = getTodayStr();
   var activeToday = trips.filter(function(t){ return t.status==='active'&&t.etapa!=='finalizado'; });
-  const c = {total:units.length,ontime:0,risk:0,delay:0,mant:0,cargando:0,transito:0,arribo:0};
+  const c = {total:units.length,ontime:0,risk:0,delay:0,mant:0,programado:0,cargando:0,transito:0,arribo:0};
   units.forEach(function(u){
     if(u.status==='mant'){ c.mant++; return; }
     var at=getActiveTrip(u.id);
@@ -2097,18 +2203,19 @@ function renderStats(){
     if(st==='ontime') c.ontime++;
     else if(st==='risk') c.risk++;
     else if(st==='delay') c.delay++;
-    var e=at.etapa||'cargando';
+    var e=at.etapa||'programado';
     if(c[e]!==undefined) c[e]++;
   });
   sb.innerHTML = [
-    {l:'Total',    n:c.total,   col:'#fff'},
-    {l:'A tiempo', n:c.ontime,  col:'#2ecc71'},
-    {l:'En riesgo',n:c.risk,    col:'#f39c12'},
-    {l:'Retraso',  n:c.delay,   col:'#e74c3c'},
-    {l:'Mant.',n:c.mant||0,col:'#ecf0f1'},
-    {l:'Cargando', n:c.cargando,col:'#90a4ae'},
-    {l:'En tránsito',n:c.transito,col:'#64b5f6'},
-    {l:'En destino',n:c.arribo, col:'#81c784'},
+    {l:'Total',      n:c.total,      col:'#fff'},
+    {l:'A tiempo',   n:c.ontime,     col:'#2ecc71'},
+    {l:'En riesgo',  n:c.risk,       col:'#f39c12'},
+    {l:'Retraso',    n:c.delay,      col:'#e74c3c'},
+    {l:'Mant.',      n:c.mant||0,    col:'#ecf0f1'},
+    {l:'Programado', n:c.programado, col:'#ce93d8'},
+    {l:'Cargando',   n:c.cargando,   col:'#90a4ae'},
+    {l:'En tránsito',n:c.transito,   col:'#64b5f6'},
+    {l:'En destino', n:c.arribo,     col:'#81c784'},
   ].map(s=>`<div class="stat"><div class="stat-n" style="color:${s.col}">${s.n}</div><div class="stat-l">${s.l}</div></div>`).join('');
 }
 
@@ -2121,7 +2228,7 @@ function checkTripActivation(){
     var cargaDate = (t.citaCarga||t.fecha||'').slice(0,10);
     if(cargaDate <= todayStr){
       t.status = 'active';
-      t.etapa = 'cargando';
+      if(t.etapa !== 'transito' && t.etapa !== 'arribo' && t.etapa !== 'mant') t.etapa = 'programado';
       changed = true;
     }
   });
@@ -2478,14 +2585,34 @@ function renderDisponibles(){
         content = '<div style="font-size:9px;font-weight:700;color:#e74c3c;text-align:center;">MANT</div>'+
           (u.mantObs ? '<div style="font-size:8px;color:#e74c3c;text-align:center;padding:0 2px;">'+u.mantObs.substring(0,15)+'</div>' : '');
       } else {
-        // Use trips array
+        // Check if there's a trip whose citaCarga date matches this day
         var dt2 = trips.find(function(t){ return String(t.unitId)===String(u.id)&&t.fecha===dk&&t.status!=='finalizado'; });
+        // Also check if there's a trip whose citaDescarga date matches this day (arrival day)
+        var dt2Desc = !dt2 ? trips.find(function(t){
+          if(String(t.unitId)!==String(u.id) || t.status==='finalizado') return false;
+          return t.citaDescarga && t.citaDescarga.slice(0,10)===dk && t.fecha!==dk;
+        }) : null;
+
         if(dt2){
           var ccolor4 = getClientColor(dt2.cliente);
           bg = ccolor4+'18';
           var ch = dt2.citaCarga?'<div style="font-size:8px;color:#27ae60;text-align:center;font-weight:600;">Carga: '+new Date(dt2.citaCarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})+'</div>':'';
-          var dh = dt2.citaDescarga?'<div style="font-size:8px;color:#e74c3c;text-align:center;font-weight:600;">Desc: '+new Date(dt2.citaDescarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})+'</div>':'';
+          var dh = '';
+          if(dt2.citaDescarga){
+            var descDate = new Date(dt2.citaDescarga);
+            var descDia = dt2.citaDescarga.slice(0,10);
+            var descHora = descDate.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+            var descLabel = descDia !== dk ? descHora+' ('+descDate.toLocaleDateString('es-MX',{day:'numeric',month:'short'})+')' : descHora;
+            dh = '<div style="font-size:8px;color:#e74c3c;text-align:center;font-weight:600;">Desc: '+descLabel+'</div>';
+          }
           content = '<div style="font-size:9px;font-weight:700;color:'+ccolor4+';text-align:center;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(dt2.sinCarga?'Sin carga':dt2.cliente)+'</div>'+ch+dh;
+        } else if(dt2Desc){
+          // This day is the arrival/descarga day of a trip that started on a previous day
+          var ccolor5 = getClientColor(dt2Desc.cliente);
+          bg = ccolor5+'10';
+          var descHora2 = new Date(dt2Desc.citaDescarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+          content = '<div style="font-size:9px;font-weight:700;color:'+ccolor5+';text-align:center;padding:0 2px;opacity:0.8;">↓ '+(dt2Desc.sinCarga?'Sin carga':dt2Desc.cliente)+'</div>'+
+            '<div style="font-size:8px;color:#e74c3c;text-align:center;font-weight:600;">Desc: '+descHora2+'</div>';
         } else {
           bg = '#f0fdf4';
           content = '<div style="font-size:9px;font-weight:700;color:#16a34a;text-align:center;padding-top:4px;">LIBRE</div>';
@@ -2635,11 +2762,25 @@ function renderCalendar(){
           var ccolor = getClientColor(t.cliente);
           grid += '<div class="cal-trip" style="border-left:3px solid '+ccolor+';background:'+ccolor+'18;" onclick="openCalModal('+tidx+')">';
           grid += '<div style="font-weight:700;font-size:11px;color:'+ccolor+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;">'+t.cliente+'</div>';
-          if(t.salida){
-            grid += '<div style="font-size:9px;color:#555;background:rgba(255,255,255,0.6);border-radius:3px;padding:1px 4px;margin-bottom:2px;">Carga: '+t.salida+'</div>';
+          var isMantBlock = t.tipoViaje === 'mant' || t.cliente === 'MANTENIMIENTO';
+          if(isMantBlock){
+            grid += '<div class="cal-trip" style="border-left:3px solid #f39c12;background:#fff8e1;" onclick="openCalModal('+tidx+')">';
+            grid += '<div style="font-weight:700;font-size:11px;color:#e67e22;">🔧 MANT</div>';
+            if(t.obs) grid += '<div style="font-size:9px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+t.obs+'</div>';
+            var mantFin = t.citaDescarga ? new Date(t.citaDescarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
+            if(mantFin) grid += '<div style="font-size:9px;color:#e67e22;font-weight:700;">Fin: '+mantFin+'</div>';
+            grid += '</div>';
+          } else {
+          var cargaHora = t.citaCarga ? new Date(t.citaCarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}) : (t.salida||'');
+          var descargaHora = t.citaDescarga ? new Date(t.citaDescarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}) : (t.eta||'');
+          if(cargaHora){
+            grid += '<div style="font-size:9px;color:#555;background:rgba(255,255,255,0.6);border-radius:3px;padding:1px 4px;margin-bottom:2px;">Carga: '+cargaHora+'</div>';
           }
-          grid += '<div style="font-size:9px;font-weight:700;color:'+ccolor+';background:rgba(255,255,255,0.8);border-radius:3px;padding:1px 4px;border:1px solid '+ccolor+'33;">Descarga: '+t.eta+'</div>';
+          if(descargaHora){
+            grid += '<div style="font-size:9px;font-weight:700;color:'+ccolor+';background:rgba(255,255,255,0.8);border-radius:3px;padding:1px 4px;border:1px solid '+ccolor+'33;">Descarga: '+descargaHora+'</div>';
+          }
           grid += '</div>';
+          }
         });
       } else {
         grid += '<div style="color:#ddd;text-align:center;padding-top:16px;font-size:14px;">—</div>';
