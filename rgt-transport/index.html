@@ -2183,26 +2183,9 @@ function renderBoard(){
       var pendientes = at.paradas.filter(function(p){return !p.completada;});
       var completadas = at.paradas.length - pendientes.length;
       var pend = pendientes.length;
-      rutaTo = '⊕ '+completadas+' de '+at.paradas.length+' entrega'+(at.paradas.length!==1?'s':'');
-      // Show current parada in the destination column
-      if(pend > 0 && pendientes[0].destino){
-        rutaTo += '<div style="font-size:11px;font-weight:700;color:var(--navy);margin-top:1px;">→ '+pendientes[0].destino+'</div>';
-      } else if(pend === 0){
-        rutaTo += '<div style="font-size:10px;color:#27ae60;margin-top:1px;">✓ Todas entregadas</div>';
-      }
 
-      // Show current GPS location - for repartos show next parada destination too
-      var gpsLocHtml = '';
-      if(u.gpsLoc){
-        var gpsColor = at.tipoViaje==='repartos' ? '#e67e22' : '#1a56db';
-        if(at.tipoViaje==='repartos' && pend > 0){
-          // For repartos: show "📍 Apodaca · Walmart Norte" so you know where they are AND which stop
-          var nextDest = pendientes[0] ? pendientes[0].destino : '';
-          gpsLocHtml = '<div style="font-size:9px;color:'+gpsColor+';margin-top:1px;">📍 '+u.gpsLoc+(nextDest?' · <b>'+nextDest+'</b>':'')+'</div>';
-        } else {
-          gpsLocHtml = '<div style="font-size:9px;color:'+gpsColor+';margin-top:1px;">📍 '+u.gpsLoc+'</div>';
-        }
-      }
+      // Line 1: count only
+      rutaTo = '⊕ '+completadas+' de '+at.paradas.length+' entrega'+(at.paradas.length!==1?'s':'');
 
       if(pend > 0){
         var nextParada = pendientes[0];
@@ -2231,35 +2214,36 @@ function renderBoard(){
                 }
               }
             } else {
-              u.gpsParadoParadaDesde = null; // moving — reset timer
+              u.gpsParadoParadaDesde = null;
             }
           } else {
-            u.gpsParadoParadaDesde = null; // wrong city — reset timer
+            u.gpsParadoParadaDesde = null;
           }
         }
 
-        // Next stop display
+        // Line 2: GPS location (where truck is now)
+        var gpsLocHtml = '';
+        if(u.gpsLoc){
+          var gpsColor = at.tipoViaje==='repartos' ? '#e67e22' : '#1a56db';
+          gpsLocHtml = '<div style="font-size:9px;color:'+gpsColor+';margin-top:2px;">📍 '+u.gpsLoc+'</div>';
+        }
+
+        // Line 3: next stop with time and complete button
         var npVencida = nextParada.citaDescarga && new Date(nextParada.citaDescarga).getTime() < Date.now();
         var npHora = nextParada.citaDescarga ? new Date(nextParada.citaDescarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : '';
-        var npInfo = npDestino + (npHora ? ' '+npHora : '');
-
-        // Manual complete button for repartos, auto-complete info for ciudades
         var completarBtn = '';
         if(at.tipoViaje==='repartos' && currentUser && currentUser.nivel!=='viewer'){
           var paradaIdxBtn = at.paradas.indexOf(nextParada);
           completarBtn = ' <button onclick="event.stopPropagation();completarParada(\''+at.tripId+'\','+paradaIdxBtn+')" style="background:#27ae60;color:#fff;border:none;padding:2px 6px;border-radius:3px;font-size:9px;font-weight:700;cursor:pointer;">✓</button>';
         }
+        var npLine = '<div style="font-size:10px;color:'+(npVencida?'#e74c3c':'#555')+';margin-top:1px;">→ '+npDestino+(npHora?' '+npHora:'')+completarBtn+'</div>';
 
-        nextParadaHtml = gpsLocHtml +
-          '<div style="font-size:10px;color:'+(npVencida?'#e74c3c':'#555')+';margin-top:2px;">'+
-          '→ '+npInfo+completarBtn+
-          '</div>';
-        if(completadas > 0){
-          nextParadaHtml += '<div style="font-size:9px;color:#27ae60;">'+completadas+' entregadas ✓</div>';
-        }
+        nextParadaHtml = gpsLocHtml + npLine;
+
       } else {
-        // All done
-        nextParadaHtml = gpsLocHtml + '<div style="font-size:10px;color:#27ae60;font-weight:700;">✓ Todas entregadas</div>';
+        // All done — show GPS location only
+        var gpsLocDone = u.gpsLoc ? '<div style="font-size:9px;color:#27ae60;margin-top:2px;">📍 '+u.gpsLoc+'</div>' : '';
+        nextParadaHtml = gpsLocDone;
       }
     }
     var nextTripHtml = '';
