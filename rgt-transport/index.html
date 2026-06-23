@@ -1667,7 +1667,9 @@ function calAddTrip(){
   var obs=(document.getElementById('cv-obs')||{}).value||'';
   var sincargaTipo=isSinCarga?((document.getElementById('cv-sincarga-tipo')||{}).value||'reposicion'):'';
   var isMant = currentTipoViaje==='mant';
-  if(!citaCarga){alert('Agrega la fecha de inicio');return;}
+  // citaCarga es opcional — si no se proporciona se usa hoy como referencia base
+  var fecha = citaCarga ? citaCarga.slice(0,10) : getTodayStr();
+  var status = (citaCarga && fecha <= getTodayStr()) ? 'active' : 'programado';
   var paradas=[];
   if(isMulti){
     document.querySelectorAll('#cv-paradas-list > div').forEach(function(row){
@@ -1680,8 +1682,6 @@ function calAddTrip(){
   }
   var uObj=units.find(function(x){return x.id===unitVal;});
   var tipo=uObj?uObj.tipo:'CAM';
-  var fecha=citaCarga.slice(0,10);
-  var status=fecha<=getTodayStr()?'active':'programado';
   var etapaFinal = isMant ? 'mant' : (etapaInicial||'programado');
   var clienteFinal = isMant ? 'MANTENIMIENTO' : cliente;
   var origenLat=(document.getElementById('cv-origen-lat')||{}).value||null;
