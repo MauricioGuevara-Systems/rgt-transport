@@ -1977,6 +1977,16 @@ function loadAll(){
     var fbBitacora = data.bitacora ? (Array.isArray(data.bitacora) ? data.bitacora : Object.values(data.bitacora)).filter(Boolean) : [];
     var fbTripHistory = data.tripHistory ? (Array.isArray(data.tripHistory) ? data.tripHistory : Object.values(data.tripHistory)).filter(Boolean) : [];
 
+    // Diagnostic
+    var fbActive = fbTrips.filter(function(t){return t.status==='active';}).length;
+    var fbProg   = fbTrips.filter(function(t){return t.status==='programado';}).length;
+    var fbFin    = fbTrips.filter(function(t){return t.status==='finalizado';}).length;
+    console.log('[FB] trips:'+fbTrips.length+' active:'+fbActive+' programado:'+fbProg+' finalizado:'+fbFin+' units:'+fbUnits.length);
+    // Units with no active trip in Firebase
+    var fbActiveIds = new Set(fbTrips.filter(function(t){return t.status==='active';}).map(function(t){return t.unitId;}));
+    var noTrip = units.filter(function(u){return !fbActiveIds.has(u.id) && u.status!=='mant';}).map(function(u){return u.id;});
+    if(noTrip.length) console.log('[FB] Units with NO active trip in Firebase:', noTrip.join(','));
+
     if(fbTrips.length > 0){
       // FIREBASE WINS: replace code array with Firebase data as source of truth.
       // Only add code trips whose tripId doesn't exist in Firebase yet (new Excel imports).
