@@ -1198,9 +1198,6 @@ function fetchGpsData(){
       var lat = v.Latitud ?? v.lat ?? v.latitud ?? 0;
       var lng = v.Longitud ?? v.lng ?? v.longitud ?? 0;
       var activeTrip = getActiveTrip(uid);
-      if(!lat || !lng || lat===0 || lng===0){
-        console.log('[GPS NOGPS] uid:'+uid+' Clave:'+chosen.name+' lat:'+lat+' lng:'+lng+' Encendido:'+chosen.v.Encendido+' Velocidad:'+chosen.v.Velocidad);
-      }
       if(activeTrip){
         // Coordenadas reales capturadas al crear el viaje tienen prioridad sobre el diccionario de ciudades
         var origCoords = (activeTrip.origenLat && activeTrip.origenLng) ? [activeTrip.origenLat, activeTrip.origenLng]
@@ -2177,7 +2174,7 @@ function renderBoard(){
 
     // GPS tags
     var gpsTag = u.gpsMotor!==undefined ? '<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:'+(u.gpsMotor?'#d4edda':'#f8d7da')+';color:'+(u.gpsMotor?'#155724':'#721c24')+';">'+(u.gpsMotor?'▶':'■')+'</span>' : '';
-    var velTag = (u.gpsVel>0 || u.gpsMotor) ? ' <span style="font-size:9px;color:'+(u.gpsVel>0?'#1a56db':'#888')+';font-weight:600;">'+Math.round(u.gpsVel||0)+'km/h</span>' : '';
+    var velTag = (u.gpsLat && u.gpsLng) ? ' <span style="font-size:9px;color:'+(u.gpsVel>0?'#1a56db':'#888')+';font-weight:600;">'+Math.round(u.gpsVel||0)+'km/h</span>' : '';
 
     // Route display
     var rutaTo = '→ '+(u.destino&&u.destino!=='TRANSITO'?u.destino:'—');
