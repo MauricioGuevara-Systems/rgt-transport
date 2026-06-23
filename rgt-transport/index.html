@@ -1723,29 +1723,63 @@ function formatEtaDisplay(eta) {
 
 function openUnitModal(idx) {
   const u = units[idx];
+  const at = getActiveTrip(u.id);
   const overlay = document.getElementById('unit-modal-overlay');
-  // Show only unit number, no CAM/THM prefix
-  document.getElementById('unit-modal-title').textContent = u.id + (u.cliente ? ' — ' + u.cliente : '');
-  const ccolor = getClientColor(u.cliente);
-  // Only show tipo carga if it's set (not undefined)
-  const tipoCargaHtml = u.temp ? '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Tipo de carga</span><span style="font-size:13px;font-weight:600;">' + u.temp + '</span></div>' : '';
-  const tempHtml = '';
-  document.getElementById('unit-modal-body').innerHTML = `
-    <div style="display:grid;gap:0;">
-      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Estado</span><span class="badge ${SC[u.status]}">${SL[u.status]}</span></div>
-      <div style="padding:8px 0;border-bottom:1px solid var(--bg);"><div style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;">Ruta</div><div style="font-size:13px;font-weight:600;">${(u.tipoViaje&&u.tipoViaje!=='directo') ? (u.tipoViaje==='paradas'?u.origen+' — '+u.paradas.length+' destinos':u.origen+' — Varios repartos') : u.origen+' → '+u.destino}</div>${(u.paradas&&u.paradas.length) ? '<div style=\"margin-top:4px;\">'+u.paradas.map(p=>'<div style=\"font-size:11px;color:#555;\">'+(u.tipoViaje==='paradas'?'→ '+p.ciudad:'· '+p.cliente)+'</div>').join('')+'</div>' : ''}</div>
-      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Cita de carga</span><span style="font-size:13px;font-weight:600;color:var(--navy);">${u.salida||"—"}</span></div>
-      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Cita de descarga</span><span style="font-size:14px;font-weight:700;color:var(--blue);">${u.eta||"—"}</span></div>
-      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Cliente</span><span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:${ccolor};display:inline-block;"></span>${u.cliente}</span></div>
-      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Operador</span><span style="font-size:13px;">${u.operador}</span></div>
-      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Mercancía</span><span style="font-size:13px;">${u.carga||'N/A'}</span></div>
-      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Carta Porte</span><span style="font-size:13px;font-weight:600;">${u.cartaporte||'—'}</span></div>
-      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Costo</span><span style="font-size:14px;font-weight:700;color:var(--navy);">${u.costo||'—'}</span></div>
-      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Etapa</span><span>${etapaCell(u)}</span></div>
-      ${tipoCargaHtml}
-    </div>
-  ${u.activeTripId ? `<div style="margin-top:16px;"><button onclick="finalizarViaje('${u.activeTripId}')" style="width:100%;background:${u.etapa==='arribo'?'#e74c3c':'#94a3b8'};color:#fff;border:none;padding:12px;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;">✓ FINALIZAR VIAJE${u.etapa!=='arribo'?' (manual)':''}</button></div>` : ""}
-  `;
+  document.getElementById('unit-modal-title').textContent = u.id + (at ? ' — ' + (at.sinCarga?'Sin carga':at.cliente) : '');
+  const ccolor = getClientColor(at ? at.cliente : u.cliente);
+  const cliente = at ? (at.sinCarga?(at.sincargaTipo||'Sin carga'):at.cliente) : (u.cliente||'—');
+  const destino = at ? at.destino : u.destino;
+  const origen  = at ? at.origen  : u.origen;
+  const operador = at ? at.operador : u.operador;
+  const cartaporte = at ? (at.cartaporte||'—') : (u.cartaporte||'—');
+  const costo = at ? (at.costo||'—') : (u.costo||'—');
+  const citaCargaFmt = at && at.citaCarga ? new Date(at.citaCarga).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : (u.salida||'—');
+  const citaDescFmt  = at && at.citaDescarga ? new Date(at.citaDescarga).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : (u.eta||'—');
+  const isMulti = at && (at.tipoViaje==='repartos'||at.tipoViaje==='ciudades') && at.paradas && at.paradas.length;
+  const canEdit = currentUser && currentUser.nivel !== 'viewer';
+
+  // Build paradas section if multi-stop
+  var paradasHtml = '';
+  if(isMulti){
+    var totalP = at.paradas.length;
+    var doneP  = at.paradas.filter(function(p){return p.completada;}).length;
+    paradasHtml = '<div style="padding:10px 0;border-bottom:1px solid var(--bg);">'+
+      '<div style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">'+
+        (at.tipoViaje==='repartos'?'ENTREGAS':'CIUDADES / PARADAS')+
+        ' <span style="color:'+(doneP===totalP?'#27ae60':'#f39c12')+';">('+doneP+'/'+totalP+')</span>'+
+      '</div>'+
+      at.paradas.map(function(p,i){
+        var done = p.completada;
+        var hora = p.citaDescarga ? ' · '+new Date(p.citaDescarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : '';
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;margin-bottom:4px;border-radius:5px;background:'+(done?'#f0fdf4':'#f8f9fb')+';border:1px solid '+(done?'#86efac':'var(--border)')+';">'+
+          '<div style="display:flex;align-items:center;gap:6px;">'+
+            '<span style="font-size:13px;">'+(done?'✅':'⬜')+'</span>'+
+            '<div>'+
+              '<div style="font-size:12px;font-weight:600;color:'+(done?'#16a34a':'var(--navy)')+';">'+(p.destino||'—')+'</div>'+
+              (hora?'<div style="font-size:10px;color:var(--muted);">Cita:'+hora+'</div>':'')+'</div>'+
+          '</div>'+
+          (!done && canEdit ? '<button onclick="event.stopPropagation();completarParada(\''+at.tripId+'\','+i+')" style="background:#27ae60;color:#fff;border:none;padding:5px 10px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;">✓ Entregado</button>' : '')+
+        '</div>';
+      }).join('')+
+    '</div>';
+  }
+
+  document.getElementById('unit-modal-body').innerHTML =
+    '<div style="display:grid;gap:0;">'+
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Estado</span><span class="badge '+SC[u.status]+'">'+(SL[u.status]||u.status)+'</span></div>'+
+    '<div style="padding:8px 0;border-bottom:1px solid var(--bg);"><div style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;">Ruta</div>'+
+      '<div style="font-size:13px;font-weight:600;">'+(origen||'—')+' → '+(isMulti?at.paradas.length+' paradas':(destino||'—'))+'</div>'+
+    '</div>'+
+    paradasHtml+
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Cita de carga</span><span style="font-size:13px;font-weight:600;color:var(--navy);">'+citaCargaFmt+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Cita de descarga</span><span style="font-size:14px;font-weight:700;color:var(--blue);">'+citaDescFmt+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Cliente</span><span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:'+ccolor+';display:inline-block;"></span>'+cliente+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Operador</span><span style="font-size:13px;">'+(operador||'—')+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Carta Porte</span><span style="font-size:13px;font-weight:600;">'+cartaporte+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Costo</span><span style="font-size:14px;font-weight:700;color:var(--navy);">'+costo+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Etapa</span><span>'+etapaCell(u)+'</span></div>'+
+    '</div>'+
+    (at && canEdit ? '<div style="margin-top:16px;"><button onclick="finalizarViaje(\''+at.tripId+'\')" style="width:100%;background:'+(u.etapa==='arribo'?'#e74c3c':'#94a3b8')+';color:#fff;border:none;padding:12px;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;">✓ FINALIZAR VIAJE'+(u.etapa!=='arribo'?' (manual)':'')+'</button></div>' : '');
   overlay.style.display = 'flex';
 }
 
@@ -2138,19 +2172,72 @@ function renderBoard(){
     var nextParadaHtml = '';
     if(at && (at.tipoViaje==='repartos'||at.tipoViaje==='ciudades') && at.paradas && at.paradas.length){
       var pendientes = at.paradas.filter(function(p){return !p.completada;});
+      var completadas = at.paradas.length - pendientes.length;
       var pend = pendientes.length;
-      rutaTo = '⊕ '+pend+' entrega'+(pend!==1?'s':'');
+      rutaTo = '⊕ '+pend+' de '+at.paradas.length+' entrega'+(at.paradas.length!==1?'s':'');
+
+      // Show current GPS location if available
+      var gpsLocHtml = '';
+      if(u.gpsLoc && at.etapa==='transito'){
+        gpsLocHtml = '<div style="font-size:9px;color:#1a56db;margin-top:1px;">📍 '+u.gpsLoc+'</div>';
+      }
+
       if(pend > 0){
-        // Siguiente entrega pendiente (la primera de la lista que no está completada)
         var nextParada = pendientes[0];
-        if(nextParada.citaDescarga){
-          var npDate = new Date(nextParada.citaDescarga);
-          var npFmt = npDate.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})+' '+npDate.toLocaleDateString('es-MX',{day:'numeric',month:'short'});
-          var npVencida = npDate.getTime() < Date.now();
-          nextParadaHtml = '<div style="font-size:10px;color:'+(npVencida?'#e74c3c':'#888')+';">'+(nextParada.destino?nextParada.destino+': ':'')+npFmt+'</div>';
-        } else if(nextParada.destino){
-          nextParadaHtml = '<div style="font-size:10px;color:#888;">Próxima: '+nextParada.destino+'</div>';
+        var npDestino = nextParada.destino || '—';
+
+        // For ciudades: auto-detect via GPS proximity
+        if(at.tipoViaje==='ciudades' && u.gpsLoc){
+          var currentCity = u.gpsLoc.toUpperCase().split(',')[0].trim();
+          var paradaCity = npDestino.toUpperCase().split('/')[0].trim();
+          var cityMatch = currentCity && paradaCity && (
+            currentCity.includes(paradaCity.split(' ')[0]) ||
+            paradaCity.includes(currentCity.split(' ')[0])
+          );
+          if(cityMatch && at.etapa==='transito'){
+            if(u.gpsVel < 5){
+              if(!u.gpsParadoParadaDesde) u.gpsParadoParadaDesde = Date.now();
+              else if(Date.now() - u.gpsParadoParadaDesde >= 20*60000){
+                var paradaIdx = at.paradas.indexOf(nextParada);
+                if(paradaIdx !== -1){
+                  at.paradas[paradaIdx].completada = true;
+                  u.gpsParadoParadaDesde = null;
+                  var allDone2 = at.paradas.every(function(p){ return p.completada; });
+                  if(allDone2){ at.etapa='arribo'; u.etapa='arribo'; }
+                  bitacora.unshift({id:uid||u.id,de:'transito',a:'entrega',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'GPS: entrega automática en '+npDestino,user:'GPS'});
+                  saveAll();
+                }
+              }
+            } else {
+              u.gpsParadoParadaDesde = null; // moving — reset timer
+            }
+          } else {
+            u.gpsParadoParadaDesde = null; // wrong city — reset timer
+          }
         }
+
+        // Next stop display
+        var npVencida = nextParada.citaDescarga && new Date(nextParada.citaDescarga).getTime() < Date.now();
+        var npHora = nextParada.citaDescarga ? new Date(nextParada.citaDescarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : '';
+        var npInfo = npDestino + (npHora ? ' '+npHora : '');
+
+        // Manual complete button for repartos, auto-complete info for ciudades
+        var completarBtn = '';
+        if(at.tipoViaje==='repartos' && currentUser && currentUser.nivel!=='viewer'){
+          var paradaIdxBtn = at.paradas.indexOf(nextParada);
+          completarBtn = ' <button onclick="event.stopPropagation();completarParada(\''+at.tripId+'\','+paradaIdxBtn+')" style="background:#27ae60;color:#fff;border:none;padding:2px 6px;border-radius:3px;font-size:9px;font-weight:700;cursor:pointer;">✓</button>';
+        }
+
+        nextParadaHtml = gpsLocHtml +
+          '<div style="font-size:10px;color:'+(npVencida?'#e74c3c':'#555')+';margin-top:2px;">'+
+          '→ '+npInfo+completarBtn+
+          '</div>';
+        if(completadas > 0){
+          nextParadaHtml += '<div style="font-size:9px;color:#27ae60;">'+completadas+' entregadas ✓</div>';
+        }
+      } else {
+        // All done
+        nextParadaHtml = gpsLocHtml + '<div style="font-size:10px;color:#27ae60;font-weight:700;">✓ Todas entregadas</div>';
       }
     }
     var nextTripHtml = '';
