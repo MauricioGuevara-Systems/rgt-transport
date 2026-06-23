@@ -1669,7 +1669,12 @@ function calAddTrip(){
   var isMant = currentTipoViaje==='mant';
   // citaCarga es opcional — si no se proporciona se usa hoy como referencia base
   var fecha = citaCarga ? citaCarga.slice(0,10) : getTodayStr();
-  var status = (citaCarga && fecha <= getTodayStr()) ? 'active' : 'programado';
+  // Si la unidad ya tiene un viaje activo, el nuevo viaje SIEMPRE es 'programado'
+  // aunque sea para hoy — no puede haber dos viajes activos simultáneos.
+  // El nuevo viaje se activará cuando el viaje actual se finalice.
+  var uObjCheck = units.find(function(x){return x.id===unitVal;});
+  var existingActive = getActiveTrip(unitVal);
+  var status = (existingActive && !isMant) ? 'programado' : ((citaCarga && fecha <= getTodayStr()) ? 'active' : 'programado');
   var paradas=[];
   if(isMulti){
     document.querySelectorAll('#cv-paradas-list > div').forEach(function(row){
@@ -1711,7 +1716,11 @@ function calAddTrip(){
   var pl=document.getElementById('cv-paradas-list');if(pl)pl.innerHTML='';
   ['cv-origen-gps-tag','cv-destino-gps-tag'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='';});
   var t=document.getElementById('toast-cal');
-  if(t){t.style.display='block';setTimeout(function(){t.style.display='none';},2500);}
+  if(t){
+    t.textContent = existingActive ? '✓ Viaje guardado como PROGRAMADO (la unidad tiene un viaje activo)' : '✓ Viaje programado';
+    t.style.display='block';
+    setTimeout(function(){t.style.display='none'; t.textContent='✓ Viaje programado';},3500);
+  }
 }
 
 // ── HELPERS ──
@@ -2174,12 +2183,25 @@ function renderBoard(){
       var pendientes = at.paradas.filter(function(p){return !p.completada;});
       var completadas = at.paradas.length - pendientes.length;
       var pend = pendientes.length;
-      rutaTo = '⊕ '+pend+' de '+at.paradas.length+' entrega'+(at.paradas.length!==1?'s':'');
+      rutaTo = '⊕ '+completadas+' de '+at.paradas.length+' entrega'+(at.paradas.length!==1?'s':'');
+      // Show current parada in the destination column
+      if(pend > 0 && pendientes[0].destino){
+        rutaTo += '<div style="font-size:11px;font-weight:700;color:var(--navy);margin-top:1px;">→ '+pendientes[0].destino+'</div>';
+      } else if(pend === 0){
+        rutaTo += '<div style="font-size:10px;color:#27ae60;margin-top:1px;">✓ Todas entregadas</div>';
+      }
 
-      // Show current GPS location if available
+      // Show current GPS location - for repartos show next parada destination too
       var gpsLocHtml = '';
-      if(u.gpsLoc && at.etapa==='transito'){
-        gpsLocHtml = '<div style="font-size:9px;color:#1a56db;margin-top:1px;">📍 '+u.gpsLoc+'</div>';
+      if(u.gpsLoc){
+        var gpsColor = at.tipoViaje==='repartos' ? '#e67e22' : '#1a56db';
+        if(at.tipoViaje==='repartos' && pend > 0){
+          // For repartos: show "📍 Apodaca · Walmart Norte" so you know where they are AND which stop
+          var nextDest = pendientes[0] ? pendientes[0].destino : '';
+          gpsLocHtml = '<div style="font-size:9px;color:'+gpsColor+';margin-top:1px;">📍 '+u.gpsLoc+(nextDest?' · <b>'+nextDest+'</b>':'')+'</div>';
+        } else {
+          gpsLocHtml = '<div style="font-size:9px;color:'+gpsColor+';margin-top:1px;">📍 '+u.gpsLoc+'</div>';
+        }
       }
 
       if(pend > 0){
