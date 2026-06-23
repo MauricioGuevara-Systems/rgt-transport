@@ -2174,7 +2174,7 @@ function renderBoard(){
 
     // GPS tags
     var gpsTag = u.gpsMotor!==undefined ? '<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:'+(u.gpsMotor?'#d4edda':'#f8d7da')+';color:'+(u.gpsMotor?'#155724':'#721c24')+';">'+(u.gpsMotor?'▶':'■')+'</span>' : '';
-    var velTag = u.gpsVel>0 ? ' <span style="font-size:9px;color:#1a56db;font-weight:600;">'+Math.round(u.gpsVel)+'km/h</span>' : '';
+    var velTag = (u.gpsVel>0 || u.gpsMotor) ? ' <span style="font-size:9px;color:'+(u.gpsVel>0?'#1a56db':'#888')+';font-weight:600;">'+Math.round(u.gpsVel||0)+'km/h</span>' : '';
 
     // Route display
     var rutaTo = '→ '+(u.destino&&u.destino!=='TRANSITO'?u.destino:'—');
