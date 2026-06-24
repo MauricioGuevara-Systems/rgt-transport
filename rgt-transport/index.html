@@ -2209,7 +2209,7 @@ function renderBoard(){
                   u.gpsParadoParadaDesde = null;
                   var allDone2 = at.paradas.every(function(p){ return p.completada; });
                   if(allDone2){ at.etapa='arribo'; u.etapa='arribo'; }
-                  bitacora.unshift({id:uid||u.id,de:'transito',a:'entrega',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'GPS: entrega automática en '+npDestino,user:'GPS'});
+                  bitacora.unshift({id:u.id,de:'transito',a:'entrega',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'GPS: entrega automática en '+npDestino,user:'GPS'});
                   saveAll();
                 }
               }
