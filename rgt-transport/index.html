@@ -997,6 +997,10 @@ const ETAPA_CSS   = {programado:'etapa-programado',cargando:'etapa-cargando',tra
 
 function etapaCell(u){
   if(u.status==='mant') return '<span class="etapa-badge etapa-na" style="background:#fff0f0;color:#c0392b;border:2px solid #e74c3c;font-weight:800;">MANT</span>';
+  // If truck is in a base/exclusion zone, show the base name instead of Cargando/Programado
+  if(u.gpsEnBase && (u.etapa==='cargando'||u.etapa==='programado')){
+    return '<span class="etapa-badge etapa-na" style="background:#f3e5f5;color:#6a1b9a;border:1px solid #ce93d8;font-weight:700;">📍 '+u.gpsEnBase+'</span>';
+  }
   const e = (u.etapa && u.etapa !== 'mant') ? u.etapa : 'na';
   const label = ETAPA_LABEL[e] || '—';
   const css = ETAPA_CSS[e] || 'etapa-na';
@@ -1215,14 +1219,48 @@ function fetchGpsData(){
         // ── ZONAS DE EXCLUSION ──
         // Coordenadas de bases donde NUNCA se considera "Cargando" aunque el camion este parado.
         var BASES = [
-          {nombre:'Base MTY',   lat:25.71258272, lng:-100.23906738},
-          {nombre:'Base CDMX1', lat:19.72229400,  lng:-99.21129700},
-          {nombre:'Base CDMX2', lat:19.71136439,  lng:-99.22950000}
+          {nombre:'Base MTY',    lat:25.71258272, lng:-100.23906738, tipo:'base'},
+          {nombre:'Base CDMX',   lat:19.72229400,  lng:-99.21129700, tipo:'base'},
+          {nombre:'Base CDMX',   lat:19.71136439,  lng:-99.22950000, tipo:'base'},
+          {nombre:'CEDIS WM MTY',lat:25.879296,    lng:-100.232217,  tipo:'cedis_wm'}
         ];
-        var BASE_RADIO_KM = 3; // 3km alrededor de cada base
-        var enZonaExcluida = (lat && lng) && BASES.some(function(b){
-          return haversineKm(lat, lng, b.lat, b.lng) <= BASE_RADIO_KM;
-        });
+        var BASE_RADIO_KM = 3;
+        var baseDetectada = null;
+        if(lat && lng){
+          var minBaseDist = BASE_RADIO_KM;
+          BASES.forEach(function(b){
+            var d = haversineKm(lat, lng, b.lat, b.lng);
+            if(d < minBaseDist){ minBaseDist = d; baseDetectada = b; }
+          });
+        }
+        var enZonaExcluida = baseDetectada !== null;
+
+        // ── DETECCIÓN DE CARGA POR ZONA DE SALIDA ──
+        // Si el camion ACABA DE SALIR de una zona conocida (estaba dentro, ahora afuera y en movimiento),
+        // actualizamos si el viaje trae carga o no segun de donde salió.
+        if(vel > 10 && !enZonaExcluida && u.gpsLat && u.gpsLng){
+          // Verificar si estaba en una zona en el ciclo anterior
+          var zonaAnterior = null;
+          BASES.forEach(function(b){
+            var dPrev = haversineKm(u.gpsLat, u.gpsLng, b.lat, b.lng);
+            if(dPrev <= BASE_RADIO_KM) zonaAnterior = b;
+          });
+          if(zonaAnterior && activeTrip && activeTrip.conCarga === undefined){
+            if(zonaAnterior.tipo === 'base'){
+              // Salió de base RGT → siempre sin carga
+              activeTrip.conCarga = false;
+              activeTrip.origenZona = zonaAnterior.nombre;
+              bitacora.unshift({id:uid,de:'zona',a:'transito',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'Salió de '+zonaAnterior.nombre+' — SIN CARGA',user:'GPS'});
+              saveAll();
+            } else if(zonaAnterior.tipo === 'cedis_wm'){
+              // Salió de CEDIS WM → con carga (Walmart)
+              activeTrip.conCarga = true;
+              activeTrip.origenZona = zonaAnterior.nombre;
+              bitacora.unshift({id:uid,de:'zona',a:'transito',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'Salió de '+zonaAnterior.nombre+' — CON CARGA',user:'GPS'});
+              saveAll();
+            }
+          }
+        }
 
         // ── CARGANDO -> PROGRAMADO (retrograde) ──
         // Si el viaje dice "cargando" pero la ventana de cita de carga aun no ha comenzado
@@ -1252,7 +1290,6 @@ function fetchGpsData(){
           var ventana2h = 2 * 60 * 60000; // 2 horas en ms
           var dentroDeVentana = citaCargaMs && (ahora >= citaCargaMs - ventana2h) && (ahora <= citaCargaMs + ventana2h);
           var paradoConMotor = motor && vel < 5 && lat && lng;
-          // Tiempo minimo parado: usamos gpsMotorOffAt como timestamp de cuando empezo a estar parado
           if(paradoConMotor && !u.gpsParadoDesde) u.gpsParadoDesde = Date.now();
           if(!paradoConMotor || vel > 5) u.gpsParadoDesde = null;
           var paradoMin20 = u.gpsParadoDesde && (Date.now() - u.gpsParadoDesde >= 20*60000);
@@ -1330,7 +1367,11 @@ function fetchGpsData(){
         } // end else if transito
       } // end if activeTrip
       u.gpsMotor = motor; u.gpsVel = vel; u.gpsLat = lat; u.gpsLng = lng;
-      if(lat && lng){ u.gpsLoc = getApproxLocation(lat,lng); var at3=getActiveTrip(uid); if(at3){at3.gpsLat=lat;at3.gpsLng=lng;} }
+      u.gpsEnBase = baseDetectada ? baseDetectada.nombre : null;
+      if(lat && lng){
+        u.gpsLoc = getApproxLocation(lat,lng);
+        var at3=getActiveTrip(uid); if(at3){at3.gpsLat=lat;at3.gpsLng=lng;}
+      }
     });
     renderBoard(); renderStats();
   })
@@ -2184,8 +2225,14 @@ function renderBoard(){
       var completadas = at.paradas.length - pendientes.length;
       var pend = pendientes.length;
 
-      // Line 1: count only
-      rutaTo = '⊕ '+completadas+' de '+at.paradas.length+' entrega'+(at.paradas.length!==1?'s':'');
+      // Line 1: count with delivery cubes
+      var cubes = '';
+      for(var ci=0; ci<at.paradas.length; ci++){
+        var done = at.paradas[ci].completada;
+        cubes += '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;margin:1px;background:'+(done?'#27ae60':'#e0e0e0')+';border:1px solid '+(done?'#1e8449':'#bbb')+';"></span>';
+      }
+      rutaTo = '⊕ '+completadas+' de '+at.paradas.length+' entrega'+(at.paradas.length!==1?'s':'')+
+        '<div style="margin-top:3px;line-height:1;">'+cubes+'</div>';
 
       if(pend > 0){
         var nextParada = pendientes[0];
@@ -2262,13 +2309,19 @@ function renderBoard(){
 
     var ccolor = getClientColor(u.cliente);
     var clienteHtml;
+    var cargaTag = '';
+    if(at && at.conCarga === false){
+      cargaTag = ' <span style="font-size:9px;background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;border-radius:3px;padding:1px 4px;font-weight:600;">📦 Vacío</span>';
+    } else if(at && at.conCarga === true){
+      cargaTag = ' <span style="font-size:9px;background:#f0fdf4;color:#16a34a;border:1px solid #86efac;border-radius:3px;padding:1px 4px;font-weight:600;">✅ Cargado</span>';
+    }
     if(at && at.sinCarga){
       clienteHtml = '<span style="color:#94a3b8;font-style:italic;">'+(at.sincargaTipo||'Sin carga')+'</span>';
     } else if(!at && u.nextTrip){
       var ntCliente = u.nextTrip.sinCarga ? (u.nextTrip.sincargaTipo||'Sin carga') : (u.nextTrip.cliente||'—');
       clienteHtml = '<span style="color:'+getClientColor(u.nextTrip.cliente)+';font-weight:600;opacity:0.6;font-style:italic;">'+ntCliente+'</span>';
     } else {
-      clienteHtml = '<span style="color:'+ccolor+';font-weight:700;">'+(u.cliente||'—')+'</span>';
+      clienteHtml = '<span style="color:'+ccolor+';font-weight:700;">'+(u.cliente||'—')+'</span>'+cargaTag;
     }
 
     var bCol = (typeof clientColors!=='undefined'&&clientColors[u.cliente]) ? '4px solid '+clientColors[u.cliente] : '4px solid transparent';
@@ -2646,101 +2699,147 @@ function renderDisponibles(){
   var c = document.getElementById('disp-grid');
   if(!c) return;
   var todayDk = todayKey();
-
   var ws = calWeekStart(calOffset);
   var days = [];
-  for(var i=0;i<7;i++){
-    var d = new Date(ws);
-    d.setDate(ws.getDate()+i);
-    days.push(d);
-  }
+  for(var i=0;i<7;i++){ var d=new Date(ws); d.setDate(ws.getDate()+i); days.push(d); }
 
   var DAY_NAMES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   var MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  var todayDk = todayKey();
 
-  var grid = '<div style="display:grid;grid-template-columns:80px repeat('+days.length+',minmax(130px,150px));border:1px solid var(--border);border-radius:8px;background:#fff;">';
+  // Pre-compute trip info for all units+days for performance
+  function getTripForDay(uid, dk){
+    var t = trips.find(function(t){ return String(t.unitId)===String(uid)&&t.fecha===dk&&t.status!=='finalizado'; });
+    if(t) return {type:'trip', trip:t};
+    var td = trips.find(function(t){
+      if(String(t.unitId)!==String(uid)||t.status==='finalizado') return false;
+      return t.citaDescarga && t.citaDescarga.slice(0,10)===dk && t.fecha!==dk;
+    });
+    if(td) return {type:'arrival', trip:td};
+    return null;
+  }
 
-  // Header
-  grid += '<div style="background:var(--navy);color:#7ab8f8;font-size:10px;font-weight:700;letter-spacing:1px;padding:10px 8px;text-align:center;position:sticky;left:0;z-index:4;">UNIDAD</div>';
-  days.forEach(function(d){
-    var isToday = dateKey(d) === todayDk;
-    grid += '<div style="background:var(--navy);color:'+(isToday?'#fbbf24':'#fff')+';font-size:11px;font-weight:700;text-align:center;padding:8px 4px;border-left:1px solid rgba(255,255,255,0.1);">'+
-      '<div style="font-size:9px;opacity:0.7;">'+DAY_NAMES[d.getDay()]+'</div>'+
-      '<div style="font-size:16px;">'+d.getDate()+'</div>'+
-      '<div style="font-size:9px;opacity:0.7;">'+MONTH_NAMES[d.getMonth()]+'</div>'+
+  // Count available units per day
+  function countLibres(dk){
+    return units.filter(function(u){
+      if(u.status==='mant') return false;
+      return !getTripForDay(u.id, dk);
+    }).length;
+  }
+
+  // Build grid
+  var cols = '100px repeat(7, minmax(140px, 1fr))';
+  var html = '<div style="overflow-x:auto;">';
+  html += '<div style="display:grid;grid-template-columns:'+cols+';min-width:1080px;">';
+
+  // ── HEADER ──
+  html += '<div style="background:#0f172a;padding:14px 10px;display:flex;align-items:center;justify-content:center;border-radius:8px 0 0 0;">'+
+    '<span style="color:#7ab8f8;font-size:10px;font-weight:800;letter-spacing:2px;">UNIDAD</span></div>';
+
+  days.forEach(function(d,i){
+    var dk = dateKey(d);
+    var isToday = dk === todayDk;
+    var libres = countLibres(dk);
+    var rounded = i===6 ? 'border-radius:0 8px 0 0;' : '';
+    html += '<div style="background:'+(isToday?'#1e3a5f':'#0f172a')+';padding:10px 8px;text-align:center;border-left:1px solid rgba(255,255,255,0.08);'+rounded+'">'+
+      '<div style="color:'+(isToday?'#fbbf24':'#94a3b8')+';font-size:10px;font-weight:700;letter-spacing:1px;">'+DAY_NAMES[d.getDay()]+'</div>'+
+      '<div style="color:'+(isToday?'#fbbf24':'#fff')+';font-size:22px;font-weight:800;line-height:1.1;">'+d.getDate()+'</div>'+
+      '<div style="color:#94a3b8;font-size:9px;margin-bottom:4px;">'+MONTH_NAMES[d.getMonth()]+'</div>'+
+      '<div style="display:inline-block;background:'+(libres>0?'#16a34a22':'#94a3b822')+';border:1px solid '+(libres>0?'#16a34a':'#94a3b8')+';border-radius:10px;padding:2px 8px;">'+
+        '<span style="color:'+(libres>0?'#4ade80':'#94a3b8')+';font-size:10px;font-weight:700;">'+libres+' libre'+(libres!==1?'s':'')+'</span>'+
+      '</div>'+
     '</div>';
   });
 
-  // Unit rows
-  units.forEach(function(u){
-    var rowBg = u.status==='mant' ? 'background:#fff0f0;' : 'background:#f8f9fb;';
-    grid += '<div style="'+rowBg+'border-top:1px solid var(--border);padding:6px 8px;position:sticky;left:0;z-index:2;display:flex;flex-direction:column;justify-content:center;min-height:54px;">'+
-      '<div style="font-size:14px;font-weight:700;color:var(--navy);">'+u.id+'</div>'+
-      '<div style="font-size:9px;color:var(--muted);">'+u.oficina+'</div>'+
+  // ── ROWS ──
+  units.forEach(function(u, uIdx){
+    var rowBg = uIdx%2===0 ? '#fff' : '#fafafa';
+    if(u.status==='mant') rowBg = '#fff5f5';
+
+    // Unit label cell
+    html += '<div style="background:'+rowBg+';border-top:1px solid #e2e8f0;padding:10px 10px;display:flex;flex-direction:column;justify-content:center;position:sticky;left:0;z-index:2;min-height:68px;box-shadow:2px 0 4px rgba(0,0,0,0.04);">'+
+      '<div style="font-size:16px;font-weight:800;color:#0f172a;line-height:1;">'+u.id+'</div>'+
+      '<div style="font-size:9px;color:#94a3b8;margin-top:2px;">'+(u.operador||u.tipo||'')+'</div>'+
+      (u.status==='mant'?'<div style="font-size:8px;color:#e74c3c;font-weight:700;margin-top:2px;">MANT</div>':'')+
     '</div>';
 
     days.forEach(function(d){
       var dk = dateKey(d);
       var isToday = dk === todayDk;
-      var border = isToday ? 'border-left:2px solid #fbbf24;' : 'border-left:1px solid var(--border);';
-
-      // Find if unit has a calTrip this day
-      var trip = calTrips.find(function(t){
-        return String(t.unitId) === String(u.id) && t.fecha === dk;
-      });
-
-      // Check if unit is actively in transit TODAY and would be on this day
-      var isActiveToday = dk === todayDk && u.cliente && 
-        (u.etapa === 'transito' || u.etapa === 'cargando' || u.etapa === 'arribo');
+      var info = getTripForDay(u.id, dk);
+      var todayBorder = isToday ? 'border-left:2px solid #fbbf24;' : 'border-left:1px solid #e2e8f0;';
 
       var bg, content;
 
-      if(u.status === 'mant'){
-        bg = '#fff0f0';
-        content = '<div style="font-size:9px;font-weight:700;color:#e74c3c;text-align:center;">MANT</div>'+
-          (u.mantObs ? '<div style="font-size:8px;color:#e74c3c;text-align:center;padding:0 2px;">'+u.mantObs.substring(0,15)+'</div>' : '');
-      } else {
-        // Check if there's a trip whose citaCarga date matches this day
-        var dt2 = trips.find(function(t){ return String(t.unitId)===String(u.id)&&t.fecha===dk&&t.status!=='finalizado'; });
-        // Also check if there's a trip whose citaDescarga date matches this day (arrival day)
-        var dt2Desc = !dt2 ? trips.find(function(t){
-          if(String(t.unitId)!==String(u.id) || t.status==='finalizado') return false;
-          return t.citaDescarga && t.citaDescarga.slice(0,10)===dk && t.fecha!==dk;
-        }) : null;
-
-        if(dt2){
-          var ccolor4 = getClientColor(dt2.cliente);
-          bg = ccolor4+'18';
-          var ch = dt2.citaCarga?'<div style="font-size:8px;color:#27ae60;text-align:center;font-weight:600;">Carga: '+new Date(dt2.citaCarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})+'</div>':'';
-          var dh = '';
-          if(dt2.citaDescarga){
-            var descDate = new Date(dt2.citaDescarga);
-            var descDia = dt2.citaDescarga.slice(0,10);
-            var descHora = descDate.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-            var descLabel = descDia !== dk ? descHora+' ('+descDate.toLocaleDateString('es-MX',{day:'numeric',month:'short'})+')' : descHora;
-            dh = '<div style="font-size:8px;color:#e74c3c;text-align:center;font-weight:600;">Desc: '+descLabel+'</div>';
+      if(u.status==='mant'){
+        bg = '#fff5f5';
+        content = '<div style="text-align:center;">'+
+          '<div style="font-size:11px;font-weight:700;color:#e74c3c;">🔧 MANT</div>'+
+          (u.mantObs?'<div style="font-size:9px;color:#e74c3c;margin-top:2px;">'+u.mantObs.substring(0,18)+'</div>':'')+
+        '</div>';
+      } else if(info && info.type==='trip'){
+        var t = info.trip;
+        var isSC = t.sinCarga || t.tipoViaje==='vacio';
+        var cc = isSC ? '#94a3b8' : getClientColor(t.cliente);
+        bg = isToday ? cc+'15' : rowBg;
+        var timeH1 = '', timeH2 = '';
+        if(isSC){
+          // Sin carga: show Salida / Llegada
+          if(t.citaCarga){
+            timeH1 = '<div style="font-size:9px;color:#64748b;font-weight:600;">↗ Sal: '+new Date(t.citaCarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})+'</div>';
           }
-          content = '<div style="font-size:9px;font-weight:700;color:'+ccolor4+';text-align:center;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(dt2.sinCarga?'Sin carga':dt2.cliente)+'</div>'+ch+dh;
-        } else if(dt2Desc){
-          // This day is the arrival/descarga day of a trip that started on a previous day
-          var ccolor5 = getClientColor(dt2Desc.cliente);
-          bg = ccolor5+'10';
-          var descHora2 = new Date(dt2Desc.citaDescarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-          content = '<div style="font-size:9px;font-weight:700;color:'+ccolor5+';text-align:center;padding:0 2px;opacity:0.8;">↓ '+(dt2Desc.sinCarga?'Sin carga':dt2Desc.cliente)+'</div>'+
-            '<div style="font-size:8px;color:#e74c3c;text-align:center;font-weight:600;">Desc: '+descHora2+'</div>';
+          if(t.citaDescarga){
+            var dd2sc = new Date(t.citaDescarga);
+            var ddDiaSC = t.citaDescarga.slice(0,10);
+            var ddLabelSC = ddDiaSC!==dk ? dd2sc.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})+' ('+dd2sc.toLocaleDateString('es-MX',{day:'numeric',month:'short'})+')' : dd2sc.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+            timeH2 = '<div style="font-size:9px;color:#64748b;font-weight:600;">↙ Llega: '+ddLabelSC+'</div>';
+          }
+          content = '<div style="border-left:3px solid #cbd5e1;padding-left:6px;width:100%;">'+
+            '<div style="font-size:10px;font-weight:700;color:#64748b;">📦 Sin carga</div>'+
+            (t.destino?'<div style="font-size:9px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">→ '+t.destino+'</div>':'')+
+            timeH1+timeH2+
+          '</div>';
         } else {
-          bg = '#f0fdf4';
-          content = '<div style="font-size:9px;font-weight:700;color:#16a34a;text-align:center;padding-top:4px;">LIBRE</div>';
+          // Con carga: show Carga / Descarga
+          var cargaH = t.citaCarga ? '<div style="font-size:9px;color:#16a34a;font-weight:600;">⬆ '+new Date(t.citaCarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})+'</div>' : '';
+          var descH = '';
+          if(t.citaDescarga){
+            var dd2 = new Date(t.citaDescarga);
+            var ddDia = t.citaDescarga.slice(0,10);
+            var ddHora = dd2.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+            var ddLabel = ddDia!==dk ? ddHora+' ('+dd2.toLocaleDateString('es-MX',{day:'numeric',month:'short'})+')' : ddHora;
+            descH = '<div style="font-size:9px;color:#dc2626;font-weight:600;">⬇ '+ddLabel+'</div>';
+          }
+          content = '<div style="border-left:3px solid '+cc+';padding-left:6px;width:100%;">'+
+            '<div style="font-size:10px;font-weight:700;color:'+cc+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+t.cliente+'</div>'+
+            (t.destino?'<div style="font-size:9px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">→ '+t.destino+'</div>':'')+
+            cargaH+descH+
+          '</div>';
         }
+      } else if(info && info.type==='arrival'){
+        var ta = info.trip;
+        var cca = getClientColor(ta.cliente);
+        bg = rowBg;
+        var aHora = ta.citaDescarga ? new Date(ta.citaDescarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : '';
+        content = '<div style="border-left:3px solid '+cca+'66;padding-left:6px;width:100%;opacity:0.8;">'+
+          '<div style="font-size:10px;font-weight:700;color:'+cca+';">↓ '+(ta.sinCarga?'Sin carga':ta.cliente)+'</div>'+
+          (aHora?'<div style="font-size:9px;color:#dc2626;font-weight:600;">llega '+aHora+'</div>':'')+
+        '</div>';
+      } else {
+        bg = isToday ? '#f0fdf4' : rowBg;
+        content = '<div style="text-align:center;">'+
+          '<div style="width:28px;height:28px;border-radius:50%;background:#dcfce7;border:2px solid #16a34a;display:flex;align-items:center;justify-content:center;margin:0 auto;">'+
+            '<span style="color:#16a34a;font-size:13px;font-weight:800;">✓</span>'+
+          '</div>'+
+          '<div style="font-size:9px;color:#16a34a;font-weight:700;margin-top:3px;">LIBRE</div>'+
+        '</div>';
       }
 
-      grid += '<div style="'+bg+border+'border-top:1px solid var(--border);min-height:54px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px;">'+content+'</div>';
+      html += '<div style="background:'+bg+';'+todayBorder+'border-top:1px solid #e2e8f0;min-height:68px;display:flex;align-items:center;padding:6px 8px;">'+content+'</div>';
     });
   });
 
-  grid += '</div>';
-  c.innerHTML = grid;
+  html += '</div></div>';
+  c.innerHTML = html;
 }
 
 function renderHistorial(){
