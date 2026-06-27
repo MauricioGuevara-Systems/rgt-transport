@@ -2217,9 +2217,21 @@ function renderBoard(){
     var gpsTag = u.gpsMotor!==undefined ? '<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:'+(u.gpsMotor?'#d4edda':'#f8d7da')+';color:'+(u.gpsMotor?'#155724':'#721c24')+';">'+(u.gpsMotor?'▶':'■')+'</span>' : '';
     var velTag = (u.gpsLat && u.gpsLng) ? ' <span style="font-size:9px;color:'+(u.gpsVel>0?'#1a56db':'#888')+';font-weight:600;">'+Math.round(u.gpsVel||0)+'km/h</span>' : '';
 
-    // Route display
+    // Route display — always show everything
     var rutaTo = '→ '+(u.destino&&u.destino!=='TRANSITO'?u.destino:'—');
     var nextParadaHtml = '';
+
+    // GPS location line — always show where truck is right now
+    var gpsLinea = '';
+    if(u.gpsEnBase){
+      // In base/known zone — show in purple
+      gpsLinea = '<div style="font-size:9px;color:#6a1b9a;font-weight:700;margin-top:2px;">📍 '+u.gpsEnBase+'</div>';
+    } else if(u.gpsLoc){
+      // In transit — show city in blue/green depending on etapa
+      var locColor = (u.etapa==='arribo') ? '#27ae60' : '#1a56db';
+      gpsLinea = '<div style="font-size:9px;color:'+locColor+';margin-top:2px;">📍 '+u.gpsLoc+'</div>';
+    }
+
     if(at && (at.tipoViaje==='repartos'||at.tipoViaje==='ciudades') && at.paradas && at.paradas.length){
       var pendientes = at.paradas.filter(function(p){return !p.completada;});
       var completadas = at.paradas.length - pendientes.length;
@@ -2268,14 +2280,7 @@ function renderBoard(){
           }
         }
 
-        // Line 2: GPS location (where truck is now)
-        var gpsLocHtml = '';
-        if(u.gpsLoc){
-          var gpsColor = at.tipoViaje==='repartos' ? '#e67e22' : '#1a56db';
-          gpsLocHtml = '<div style="font-size:9px;color:'+gpsColor+';margin-top:2px;">📍 '+u.gpsLoc+'</div>';
-        }
-
-        // Line 3: next stop with time and complete button
+        // Next stop with time and complete button
         var npVencida = nextParada.citaDescarga && new Date(nextParada.citaDescarga).getTime() < Date.now();
         var npHora = nextParada.citaDescarga ? new Date(nextParada.citaDescarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : '';
         var completarBtn = '';
@@ -2283,15 +2288,14 @@ function renderBoard(){
           var paradaIdxBtn = at.paradas.indexOf(nextParada);
           completarBtn = ' <button onclick="event.stopPropagation();completarParada(\''+at.tripId+'\','+paradaIdxBtn+')" style="background:#27ae60;color:#fff;border:none;padding:2px 6px;border-radius:3px;font-size:9px;font-weight:700;cursor:pointer;">✓</button>';
         }
-        var npLine = '<div style="font-size:10px;color:'+(npVencida?'#e74c3c':'#555')+';margin-top:1px;">→ '+npDestino+(npHora?' '+npHora:'')+completarBtn+'</div>';
-
-        nextParadaHtml = gpsLocHtml + npLine;
-
+        nextParadaHtml = gpsLinea +
+          '<div style="font-size:10px;color:'+(npVencida?'#e74c3c':'#555')+';margin-top:1px;">→ '+npDestino+(npHora?' '+npHora:'')+completarBtn+'</div>';
       } else {
-        // All done — show GPS location only
-        var gpsLocDone = u.gpsLoc ? '<div style="font-size:9px;color:#27ae60;margin-top:2px;">📍 '+u.gpsLoc+'</div>' : '';
-        nextParadaHtml = gpsLocDone;
+        nextParadaHtml = gpsLinea;
       }
+    } else {
+      // Single destination: just show GPS location
+      nextParadaHtml = gpsLinea;
     }
     var nextTripHtml = '';
     if(!at && u.nextTrip){
