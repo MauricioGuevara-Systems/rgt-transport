@@ -1195,7 +1195,7 @@ function fetchGpsData(){
       var chosen = candidates.find(function(c){ return c.isPrimary; }) || candidates[0];
       var v = chosen.v;
       var u = units.find(function(x){ return x.id === uid; });
-      if(!u || u.status === 'mant') return;
+      if(!u) return;
       var motor = v.Encendido === true || v.StatusMotor === true || v.ignicion === true || v.ignicion === 1 || v.estado === 'encendido';
       var vel = parseFloat(v.Velocidad ?? v.GPSVelocidad ?? v.velocidad ?? v.speed ?? 0);
       if(isNaN(vel) || vel > 160 || vel < 0) vel = 0; // descarta valores GPS corruptos (ej. error de unidades del proveedor)
