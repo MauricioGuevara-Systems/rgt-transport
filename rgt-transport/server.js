@@ -7,6 +7,36 @@ const API = 'https://api.mx-1.ontracking.com.mx';
 const GPS_USER = 'rgt.integracion';
 const GPS_PASS = '123456';
 
+// ── PRUEBA: ¿se puede descargar el Excel de SharePoint sin login? ────────
+// Esto NO hace nada con los datos todavia. Solo es para confirmar si la
+// descarga automática es técnicamente posible antes de construir más.
+const EXCEL_SHARE_URL = 'https://rglogistics-my.sharepoint.com/:x:/g/personal/david_rglogistics_onmicrosoft_com/IQCDpMrbIQUvSL7DWYi-NYJmAT10WfdJIWQZQisxZXjLeOg?e=cU1eMH';
+
+app.get('/api/test-excel-download', async (req, res) => {
+  const base = EXCEL_SHARE_URL.split('?')[0];
+  const attempts = [base + '?download=1', EXCEL_SHARE_URL.replace('?e=', '&download=1&e=')];
+  const results = [];
+  for(const url of attempts){
+    try {
+      const r = await fetch(url, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0' } });
+      const buf = await r.buffer();
+      const sniff = buf.slice(0, 300).toString('utf8');
+      const looksLikeLogin = sniff.toLowerCase().includes('<html') || sniff.toLowerCase().includes('login') || sniff.toLowerCase().includes('sign in');
+      results.push({
+        url,
+        httpStatus: r.status,
+        contentType: r.headers.get('content-type'),
+        sizeBytes: buf.length,
+        looksLikeLogin,
+        firstBytesPreview: sniff.slice(0, 150)
+      });
+    } catch(e){
+      results.push({ url, error: e.message });
+    }
+  }
+  res.json({ conclusion: results.some(r => !r.looksLikeLogin && r.sizeBytes > 1000) ? 'POSIBLE_EXITO' : 'PROBABLEMENTE_PIDE_LOGIN', results });
+});
+
 // Serve static files from current directory
 app.use(express.static(path.join(__dirname)));
 
