@@ -996,7 +996,10 @@ const ETAPA_LABEL = {programado:'Programado',cargando:'Cargando',transito:'En Tr
 const ETAPA_CSS   = {programado:'etapa-programado',cargando:'etapa-cargando',transito:'etapa-transito',arribo:'etapa-arribo',mant:'etapa-na',na:'etapa-na'};
 
 function etapaCell(u){
-  if(u.status==='mant') return '<span class="etapa-badge etapa-na" style="background:#fff0f0;color:#c0392b;border:2px solid #e74c3c;font-weight:800;">MANT</span>';
+  if(u.status==='mant'){
+    if(u.gpsEnBase) return '<span class="etapa-badge etapa-na" style="background:#f3e5f5;color:#6a1b9a;border:1px solid #ce93d8;font-weight:700;">📍 '+u.gpsEnBase+'</span>';
+    return '<span class="etapa-badge etapa-na" style="background:#fff0f0;color:#c0392b;border:2px solid #e74c3c;font-weight:800;">MANT</span>';
+  }
   // If truck is in a base/exclusion zone, show the base name instead of Cargando/Programado
   if(u.gpsEnBase && (u.etapa==='cargando'||u.etapa==='programado')){
     return '<span class="etapa-badge etapa-na" style="background:#f3e5f5;color:#6a1b9a;border:1px solid #ce93d8;font-weight:700;">📍 '+u.gpsEnBase+'</span>';
@@ -1865,7 +1868,6 @@ let units = [
   {id:'37',tipo:'THM',oficina:'MTY',status:'ontime',origen:'MTY',destino:'',cliente:'AUTO ZONE',eta:'',etapa:'cargando',temp:null,tempLimit:null,thermo:true,operador:'FER CERDA',nota:'',mantObs:'',costo:'',cartaporte:'',prog:0},
   {id:'41',tipo:'CAM',oficina:'CDMX',status:'ontime',origen:'CDMX',destino:'TEPIC',cliente:'AUTO ZONE',eta:'',etapa:'transito',temp:null,tempLimit:null,thermo:false,operador:'ELADIO DEMETRIO',nota:'',mantObs:'',costo:'$39,950',cartaporte:'CP 22116',prog:0},
   {id:'42',tipo:'CAM',oficina:'CDMX',status:'ontime',origen:'CDMX',destino:'RIO GDE - FRESNILLO',cliente:'AUTO ZONE',eta:'',etapa:'transito',temp:null,tempLimit:null,thermo:false,operador:'LUIS FHERNANDO',nota:'',mantObs:'',costo:'$37,000',cartaporte:'CP 22101',prog:0},
-  {id:'45',tipo:'THM',oficina:'MTY',status:'ontime',origen:'MTY',destino:'MANTENIMIENTO',cliente:'WM PERECEDEROS',eta:'',etapa:'cargando',temp:null,tempLimit:null,thermo:true,operador:'ALBERTO MEDRANO',nota:'',mantObs:'',costo:'',cartaporte:'',prog:0},
   {id:'46',tipo:'CAM',oficina:'CDMX',status:'ontime',origen:'CDMX',destino:'VALLADOLID',cliente:'AUTO ZONE',eta:'',etapa:'transito',temp:null,tempLimit:null,thermo:false,operador:'LENIN GARCIA',nota:'',mantObs:'',costo:'$74,000',cartaporte:'CP 22102',prog:0},
   {id:'47',tipo:'THM',oficina:'CDMX',status:'ontime',origen:'CDMX',destino:'TUXTLA',cliente:'COSMOCEL',eta:'',etapa:'transito',temp:null,tempLimit:null,thermo:true,operador:'CARLOS TERRON',nota:'',mantObs:'',costo:'',cartaporte:'CP 22107',prog:0},
   {id:'48',tipo:'THM',oficina:'MTY',status:'ontime',origen:'MTY',destino:'',cliente:'WM PERECEDEROS',eta:'',etapa:'cargando',temp:null,tempLimit:null,thermo:true,operador:'JORGE GTZ',nota:'',mantObs:'',costo:'',cartaporte:'',prog:0},
@@ -2010,6 +2012,7 @@ function _doSave(){
 }
 function loadAll(){
   if(!window.db){ window._pendingLoadAll = true; return; }
+  var UNIDADES_VENDIDAS = ['45']; // unidades que ya no son parte de la flota
   window.db.ref('rgt').on('value', function(snapshot){
     var data = snapshot.val();
     if(!data) return;
@@ -2018,6 +2021,12 @@ function loadAll(){
     var fbUnits = data.units ? (Array.isArray(data.units) ? data.units : Object.values(data.units)).filter(Boolean) : [];
     var fbBitacora = data.bitacora ? (Array.isArray(data.bitacora) ? data.bitacora : Object.values(data.bitacora)).filter(Boolean) : [];
     var fbTripHistory = data.tripHistory ? (Array.isArray(data.tripHistory) ? data.tripHistory : Object.values(data.tripHistory)).filter(Boolean) : [];
+
+    // Quitar unidades vendidas de todos lados, sin importar de donde vengan
+    units = units.filter(function(u){ return UNIDADES_VENDIDAS.indexOf(u.id) === -1; });
+    fbUnits = fbUnits.filter(function(u){ return UNIDADES_VENDIDAS.indexOf(u.id) === -1; });
+    trips = trips.filter(function(t){ return UNIDADES_VENDIDAS.indexOf(t.unitId) === -1; });
+    fbTrips = fbTrips.filter(function(t){ return UNIDADES_VENDIDAS.indexOf(t.unitId) === -1; });
 
     if(fbTrips.length > 0){
       // FIREBASE WINS: replace code array with Firebase data as source of truth.
