@@ -1202,6 +1202,25 @@ function fetchGpsData(){
       var lat = v.Latitud ?? v.lat ?? v.latitud ?? 0;
       var lng = v.Longitud ?? v.lng ?? v.longitud ?? 0;
       var activeTrip = getActiveTrip(uid);
+
+      // ── ZONAS DE EXCLUSION ── (corre SIEMPRE, sin importar si hay viaje activo)
+      var BASES = [
+        {nombre:'Base MTY',    lat:25.71258272, lng:-100.23906738, tipo:'base'},
+        {nombre:'Base CDMX',   lat:19.72229400,  lng:-99.21129700, tipo:'base'},
+        {nombre:'Base CDMX',   lat:19.71136439,  lng:-99.22950000, tipo:'base'},
+        {nombre:'CEDIS WM MTY',lat:25.879296,    lng:-100.232217,  tipo:'cedis_wm'}
+      ];
+      var BASE_RADIO_KM = 0.5; // 500 metros — precisión para detectar que está EN la base, no solo cerca
+      var baseDetectada = null;
+      if(lat && lng){
+        var minBaseDist = BASE_RADIO_KM;
+        BASES.forEach(function(b){
+          var d = haversineKm(lat, lng, b.lat, b.lng);
+          if(d < minBaseDist){ minBaseDist = d; baseDetectada = b; }
+        });
+      }
+      var enZonaExcluida = baseDetectada !== null;
+
       if(activeTrip){
         // Coordenadas reales capturadas al crear el viaje tienen prioridad sobre el diccionario de ciudades
         var origCoords = (activeTrip.origenLat && activeTrip.origenLng) ? [activeTrip.origenLat, activeTrip.origenLng]
@@ -1215,25 +1234,6 @@ function fetchGpsData(){
         // Respaldo: cambio real de posicion entre ciclos del GPS (cada ~3min), para el caso en que
         // el proveedor reporte Velocidad:0 de forma poco confiable aun con el camion en movimiento real.
         var movedSinceLastCheck = (lat && lng && u.gpsLat && u.gpsLng) ? (haversineKm(lat,lng,u.gpsLat,u.gpsLng) > 1) : false;
-
-        // ── ZONAS DE EXCLUSION ──
-        // Coordenadas de bases donde NUNCA se considera "Cargando" aunque el camion este parado.
-        var BASES = [
-          {nombre:'Base MTY',    lat:25.71258272, lng:-100.23906738, tipo:'base'},
-          {nombre:'Base CDMX',   lat:19.72229400,  lng:-99.21129700, tipo:'base'},
-          {nombre:'Base CDMX',   lat:19.71136439,  lng:-99.22950000, tipo:'base'},
-          {nombre:'CEDIS WM MTY',lat:25.879296,    lng:-100.232217,  tipo:'cedis_wm'}
-        ];
-        var BASE_RADIO_KM = 3;
-        var baseDetectada = null;
-        if(lat && lng){
-          var minBaseDist = BASE_RADIO_KM;
-          BASES.forEach(function(b){
-            var d = haversineKm(lat, lng, b.lat, b.lng);
-            if(d < minBaseDist){ minBaseDist = d; baseDetectada = b; }
-          });
-        }
-        var enZonaExcluida = baseDetectada !== null;
 
         // ── DETECCIÓN DE CARGA POR ZONA DE SALIDA ──
         // Si el camion ACABA DE SALIR de una zona conocida (estaba dentro, ahora afuera y en movimiento),
