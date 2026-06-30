@@ -394,8 +394,8 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
               <input type="hidden" id="ed-destino-lat"/><input type="hidden" id="ed-destino-lng"/>
               <div id="ed-destino-gps-tag" style="font-size:10px;color:#27ae60;margin-top:3px;"></div>
             </div>
-            <div class="field"><label>Cita de carga</label><input id="ed-salida" type="datetime-local" lang="es-MX"/></div>
-            <div class="field"><label>Cita de descarga</label><input id="ed-eta" type="datetime-local" lang="es-MX"/><div id="ed-eta-helper" style="font-size:11px;color:var(--blue);margin-top:3px;font-weight:600;"></div></div>
+            <div class="field"><label>Cita de carga</label><input id="ed-salida" type="datetime-local" step="900" lang="es-MX"/></div>
+            <div class="field"><label>Cita de descarga</label><input id="ed-eta" type="datetime-local" step="900" lang="es-MX"/><div id="ed-eta-helper" style="font-size:11px;color:var(--blue);margin-top:3px;font-weight:600;"></div></div>
             <div class="field"><label>Tipo de carga</label>
               <select id="ed-tipo-carga" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;">
                 <option value="">— Sin especificar —</option>
@@ -539,13 +539,13 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
             <!-- Cita de carga -->
             <div class="field">
               <label>Cita de carga ⬆</label>
-              <input id="cv-salida" type="datetime-local" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
+              <input id="cv-salida" type="datetime-local" step="900" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
             </div>
 
             <!-- Cita de descarga -->
             <div class="field" id="cv-descarga-wrap">
               <label>Cita de descarga 🕐</label>
-              <input id="cv-datetime" type="datetime-local" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
+              <input id="cv-datetime" type="datetime-local" step="900" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
             </div>
 
             <!-- Origen -->
@@ -671,8 +671,8 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             <div class="field"><label>Cliente</label><input id="ce-cliente" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
             <div class="field"><label>Destino</label><input id="ce-destino" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
-            <div class="field"><label>Cita de descarga</label><input id="ce-eta" type="datetime-local" lang="es-MX" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
-            <div class="field"><label>Cita de carga</label><input id="ce-salida" type="datetime-local" lang="es-MX" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
+            <div class="field"><label>Cita de descarga</label><input id="ce-eta" type="datetime-local" step="900" lang="es-MX" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
+            <div class="field"><label>Cita de carga</label><input id="ce-salida" type="datetime-local" step="900" lang="es-MX" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
             <div class="field"><label>Carta Porte</label><input id="ce-cp" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
             <div class="field"><label>Costo ($)</label><input id="ce-costo" type="number" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
             <div class="field" style="grid-column:1/-1;"><label>Observaciones</label><input id="ce-obs" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
@@ -1505,7 +1505,7 @@ function addParada(){
   div.innerHTML = '<div><div style="font-size:10px;color:var(--muted);margin-bottom:3px;">'+lbl+'</div>'+
     '<input class="parada-dest" placeholder="'+ph+'" style="'+s+'"/></div>'+
     '<div><div style="font-size:10px;color:var(--muted);margin-bottom:3px;">CITA DESCARGA</div>'+
-    '<input class="parada-cita" type="datetime-local" style="'+s+'"/></div>'+
+    '<input class="parada-cita" type="datetime-local" step="900" style="'+s+'"/></div>'+
     '<button onclick="this.parentElement.remove()" style="background:none;border:1px solid #e74c3c;color:#e74c3c;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:11px;">x</button>';
   list.appendChild(div);
 }
@@ -2473,7 +2473,7 @@ function addParadaEd(paradaData){
   div.innerHTML = '<div><div style="font-size:10px;color:var(--muted);margin-bottom:3px;">'+lbl+'</div>'+
     '<input class="ed-parada-dest" value="'+pDest.replace(/"/g,'&quot;')+'" placeholder="'+ph+'" style="'+s+'"/></div>'+
     '<div><div style="font-size:10px;color:var(--muted);margin-bottom:3px;">CITA DESCARGA</div>'+
-    '<input class="ed-parada-cita" type="datetime-local" value="'+pCita+'" style="'+s+'"/></div>'+
+    '<input class="ed-parada-cita" type="datetime-local" step="900" value="'+pCita+'" style="'+s+'"/></div>'+
     '<button type="button" onclick="this.parentElement.remove()" style="background:none;border:1px solid #e74c3c;color:#e74c3c;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:11px;">x</button>';
   list.appendChild(div);
 }
