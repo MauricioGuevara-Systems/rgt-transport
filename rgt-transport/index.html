@@ -72,6 +72,8 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .navbtn.active{color:var(--navy);border-bottom:3px solid var(--blue);}
 .navbtn.admin-only{display:none;}
 .navbtn.admin-only.visible{display:inline-block;}
+.navbtn.finanzas-only{display:none;}
+.navbtn.finanzas-only.visible{display:inline-block;}
 
 .main{flex:1;padding:16px 20px;}
 .view{display:none;}
@@ -120,6 +122,8 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .admin-card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px;}
 .admin-card-title{font-family:'Oswald',sans-serif;font-size:14px;color:var(--navy);letter-spacing:2px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
 .field{margin-bottom:10px;}
+.finanzas-field{display:none;}
+.finanzas-field.visible{display:block;}
 .field label{display:block;font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
 .field select,.field input{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;background:#f8f9fb;}
 .field select:focus,.field input:focus{border-color:var(--blue);}
@@ -280,21 +284,22 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
         <div class="user-name" id="user-name-disp">—</div>
         <div class="user-role" id="user-role-disp">—</div>
       </div>
-      <button id="btn-gps" onclick="gpsInterval?stopGps():startGps()" style="background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.3);padding:5px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;margin-right:8px;font-family:'DM Sans',sans-serif;">📡 GPS</button><button class="logout-btn" onclick="doLogout()">SALIR</button>
+      <button id="btn-gps" onclick="gpsInterval?stopGps():startGps()" style="background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.3);padding:5px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;margin-right:8px;font-family:'DM Sans',sans-serif;">GPS</button><button class="logout-btn" onclick="doLogout()">SALIR</button>
     </div>
   </div>
 
   <div class="statsbar" id="statsbar"></div>
 
   <div class="nav">
-    <button class="navbtn active" onclick="showView('tablero',this)">📋 Tablero</button>
-    <button class="navbtn admin-only" onclick="showView('admin',this)">✏️ Actualizar</button>
-    <button class="navbtn admin-only" onclick="showView('clientes',this)">🎨 Clientes</button>
+    <button class="navbtn active" onclick="showView('tablero',this)">Tablero</button>
+    <button class="navbtn admin-only" onclick="showView('admin',this)">Actualizar</button>
+    <button class="navbtn admin-only" onclick="showView('clientes',this)">Clientes</button>
     <button class="navbtn" onclick="showView('calendario',this)">Calendario</button>
-    <button class="navbtn" onclick="showView('bitacora',this)">📋 Bitácora</button>
+    <button class="navbtn" onclick="showView('bitacora',this)">Bitácora</button>
     <button class="navbtn" onclick="showView('historial',this)">Historial</button>
     <button class="navbtn" onclick="showView('disponibles',this)">Disponibles</button>
     <button class="navbtn admin-only" onclick="showView('reportes',this)">📊 Reportes</button>
+    <button class="navbtn finanzas-only" onclick="showView('finanzas',this)" style="color:var(--green);">Finanzas</button>
   </div>
 
   <div class="main">
@@ -382,7 +387,7 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
             <div class="field"><label>Origen</label>
               <div style="display:flex;gap:6px;">
                 <input id="ed-origen" placeholder="Ej. Monterrey, Apodaca..." style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
-                <button type="button" onclick="capturarGpsEd('origen')" title="Usar posición GPS actual del camión" style="background:var(--blue);color:#fff;border:none;padding:0 10px;border-radius:5px;font-size:13px;cursor:pointer;">📍</button>
+                <button type="button" onclick="capturarGpsEd('origen')" title="Usar posición GPS actual del camión" style="background:var(--blue);color:#fff;border:none;padding:0 10px;border-radius:5px;font-size:13px;cursor:pointer;display:flex;align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg></button>
               </div>
               <input type="hidden" id="ed-origen-lat"/><input type="hidden" id="ed-origen-lng"/>
               <div id="ed-origen-gps-tag" style="font-size:10px;color:#27ae60;margin-top:3px;"></div>
@@ -394,8 +399,8 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
               <input type="hidden" id="ed-destino-lat"/><input type="hidden" id="ed-destino-lng"/>
               <div id="ed-destino-gps-tag" style="font-size:10px;color:#27ae60;margin-top:3px;"></div>
             </div>
-            <div class="field"><label>Cita de carga</label><input id="ed-salida" type="datetime-local" step="900" lang="es-MX"/></div>
-            <div class="field"><label>Cita de descarga</label><input id="ed-eta" type="datetime-local" step="900" lang="es-MX"/><div id="ed-eta-helper" style="font-size:11px;color:var(--blue);margin-top:3px;font-weight:600;"></div></div>
+            <div class="field"><label>Cita de carga</label><input id="ed-salida" type="datetime-local" lang="es-MX"/></div>
+            <div class="field"><label>Cita de descarga</label><input id="ed-eta" type="datetime-local" lang="es-MX"/><div id="ed-eta-helper" style="font-size:11px;color:var(--blue);margin-top:3px;font-weight:600;"></div></div>
             <div class="field"><label>Tipo de carga</label>
               <select id="ed-tipo-carga" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;">
                 <option value="">— Sin especificar —</option>
@@ -411,7 +416,7 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
               <datalist id="ed-operador-list"></datalist>
             </div>
             <div class="field"><label>Carta Porte (folio)</label><input id="ed-cartaporte" placeholder="Ej. CP 22091" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/></div>
-            <div class="field"><label>Costo ($)</label><input id="ed-costo" type="number" placeholder="Ej. 38325" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/></div>
+            <div class="field finanzas-field" id="campo-costo-ed"><label>Costo ($)</label><input id="ed-costo" type="number" placeholder="Ej. 38325" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/></div>
             <div class="field" id="ed-paradas-wrap" style="display:none;background:#f8f9fb;border-radius:6px;padding:10px;border:1px solid var(--border);">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                 <div style="font-size:11px;font-weight:700;color:var(--navy);letter-spacing:1px;" id="ed-paradas-lbl">PARADAS</div>
@@ -421,7 +426,7 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
             </div>
             <div style="display:flex;gap:10px;margin-top:4px;">
               <button class="btn-primary" onclick="guardarCambios()" style="flex:1;">GUARDAR CAMBIOS</button>
-              <button onclick="borrarViaje()" style="flex:0 0 auto;background:none;border:2px solid #e74c3c;color:#e74c3c;padding:10px 16px;border-radius:5px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;">🗑 BORRAR VIAJE</button>
+              <button onclick="borrarViaje()" style="flex:0 0 auto;background:none;border:2px solid #e74c3c;color:#e74c3c;padding:10px 16px;border-radius:5px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;">BORRAR VIAJE</button>
             </div>
             <div class="toast" id="toast-edit">✓ Cambios guardados</div>
           </div>
@@ -445,7 +450,7 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
               </div>
             </div>
             <div id="ed-no-thermo" style="text-align:center;padding:30px 20px;color:var(--muted);font-size:13px;display:none;">
-              <div style="font-size:32px;margin-bottom:8px;">🚛</div>
+              <div style="margin-bottom:8px;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h13v13H1z"/><path d="M14 8h4l3 3v5h-7V8z"/><circle cx="5" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></div>
               Esta unidad no es thermo/refrigerada
             </div>
           </div>
@@ -532,20 +537,20 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
                 <option value="repartos">Repartos (misma ciudad)</option>
                 <option value="ciudades">Varias ciudades</option>
                 <option value="vacio">Sin carga</option>
-                <option value="mant">🔧 Mantenimiento</option>
+                <option value="mant">Mantenimiento</option>
               </select>
             </div>
 
             <!-- Cita de carga -->
             <div class="field">
-              <label>Cita de carga ⬆</label>
-              <input id="cv-salida" type="datetime-local" step="900" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
+              <label>Cita de carga ↑</label>
+              <input id="cv-salida" type="datetime-local" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
             </div>
 
             <!-- Cita de descarga -->
             <div class="field" id="cv-descarga-wrap">
-              <label>Cita de descarga 🕐</label>
-              <input id="cv-datetime" type="datetime-local" step="900" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
+              <label>Cita de descarga ↓</label>
+              <input id="cv-datetime" type="datetime-local" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
             </div>
 
             <!-- Origen -->
@@ -553,7 +558,7 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
               <label>Origen</label>
               <div style="display:flex;gap:6px;">
                 <input id="cv-origen" placeholder="Ej. Monterrey" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
-                <button type="button" onclick="capturarGpsCv('origen')" title="Usar posición GPS actual del camión" style="background:var(--blue);color:#fff;border:none;padding:0 10px;border-radius:5px;font-size:13px;cursor:pointer;">📍</button>
+                <button type="button" onclick="capturarGpsCv('origen')" title="Usar posición GPS actual del camión" style="background:var(--blue);color:#fff;border:none;padding:0 10px;border-radius:5px;font-size:13px;cursor:pointer;display:flex;align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg></button>
               </div>
               <input type="hidden" id="cv-origen-lat"/><input type="hidden" id="cv-origen-lng"/>
               <div id="cv-origen-gps-tag" style="font-size:10px;color:#27ae60;margin-top:3px;"></div>
@@ -603,7 +608,7 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
             </div>
 
             <!-- Costo -->
-            <div class="field">
+            <div class="field finanzas-field" id="campo-costo-cv">
               <label>Costo ($)</label>
               <input id="cv-costo" type="number" placeholder="Ej. 38325" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;background:#f8f9fb;"/>
             </div>
@@ -671,10 +676,10 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             <div class="field"><label>Cliente</label><input id="ce-cliente" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
             <div class="field"><label>Destino</label><input id="ce-destino" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
-            <div class="field"><label>Cita de descarga</label><input id="ce-eta" type="datetime-local" step="900" lang="es-MX" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
-            <div class="field"><label>Cita de carga</label><input id="ce-salida" type="datetime-local" step="900" lang="es-MX" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
+            <div class="field"><label>Cita de descarga</label><input id="ce-eta" type="datetime-local" lang="es-MX" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
+            <div class="field"><label>Cita de carga</label><input id="ce-salida" type="datetime-local" lang="es-MX" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
             <div class="field"><label>Carta Porte</label><input id="ce-cp" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
-            <div class="field"><label>Costo ($)</label><input id="ce-costo" type="number" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
+            <div class="field finanzas-field" id="campo-costo-ce"><label>Costo ($)</label><input id="ce-costo" type="number" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
             <div class="field" style="grid-column:1/-1;"><label>Observaciones</label><input id="ce-obs" style="width:100%;padding:7px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;"/></div>
           </div>
           <div style="display:flex;gap:8px;margin-top:10px;">
@@ -715,15 +720,22 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
     <!-- REPORTES -->
     <div class="view" id="view-reportes">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-        <div class="section-lbl" style="margin:0;">REPORTES DE OPERACIÓN</div>
+        <div class="section-lbl" style="margin:0;">📊 REPORTES DE OPERACIÓN</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <select id="rep-tipo" onchange="onRepTipoChange()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;background:#f8f9fb;font-family:'DM Sans',sans-serif;font-weight:700;"><option value="diario">Diario</option><option value="semanal" selected>Semanal</option><option value="mensual">Mensual</option></select><select id="rep-semana" onchange="renderReportes()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;background:#f8f9fb;font-family:'DM Sans',sans-serif;"><option value="0">Esta semana</option><option value="1">Semana pasada</option><option value="2">Hace 2 semanas</option></select><select IGNORE="rep-periodo" onchange="renderReportes()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;background:#f8f9fb;font-family:'DM Sans',sans-serif;">
-            <option value="7" selected>Esta semana</option>
-            <option value="30">Este mes</option>
+          <select id="rep-periodo" onchange="renderReportes()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;background:#f8f9fb;font-family:'DM Sans',sans-serif;font-weight:700;">
+            <option value="7">Esta semana</option>
+            <option value="30" selected>Este mes</option>
             <option value="90">Últimos 3 meses</option>
             <option value="all">Todo el historial</option>
           </select>
-          <button onclick="exportarExcel()" style="background:var(--green);color:#fff;border:none;padding:8px 16px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">⬇ Exportar Excel</button>
+          <select id="rep-oficina" onchange="renderReportes()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;background:#f8f9fb;font-family:'DM Sans',sans-serif;">
+            <option value="">Todas las bases</option>
+            <option value="MTY">MTY</option>
+            <option value="CDMX">CDMX</option>
+          </select>
+          <input id="rep-cliente" placeholder="Filtrar cliente..." oninput="renderReportes()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;background:#f8f9fb;font-family:'DM Sans',sans-serif;width:150px;"/>
+          <input id="rep-unidad" placeholder="Filtrar unidad..." oninput="renderReportes()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;background:#f8f9fb;font-family:'DM Sans',sans-serif;width:130px;"/>
+          <button onclick="exportarExcel()" style="background:var(--green);color:#fff;border:none;padding:8px 16px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'DM Sans',sans-serif;">↓ Exportar Excel</button>
         </div>
       </div>
       <div id="rep-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;"></div>
@@ -731,8 +743,62 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
         <div class="admin-card"><div class="admin-card-title">VIAJES POR CLIENTE</div><div id="rep-clientes"></div></div>
         <div class="admin-card"><div class="admin-card-title">VIAJES POR UNIDAD</div><div id="rep-unidades"></div></div>
       </div>
+      <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="admin-card">
+          <div class="admin-card-title" style="display:flex;justify-content:space-between;align-items:center;">PUNTUALIDAD DE CARGA <button onclick="verDetallePuntualidad('carga')" style="background:none;border:1px solid var(--border);color:var(--navy);font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;">Ver detalle</button></div>
+          <div id="rep-punt-carga"></div>
+        </div>
+        <div class="admin-card">
+          <div class="admin-card-title" style="display:flex;justify-content:space-between;align-items:center;">PUNTUALIDAD DE DESCARGA <button onclick="verDetallePuntualidad('descarga')" style="background:none;border:1px solid var(--border);color:var(--navy);font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;">Ver detalle</button></div>
+          <div id="rep-punt-descarga"></div>
+        </div>
+      </div>
       <div style="margin-top:16px;">
-        <div class="admin-card"><div class="admin-card-title">PUNTUALIDAD</div><div id="rep-puntualidad"></div></div>
+        <div class="admin-card">
+          <div class="admin-card-title" style="display:flex;justify-content:space-between;align-items:center;">📍 UNIDADES PARADAS EN BASE SIN VIAJE <span id="rep-idle-count" style="font-size:10px;color:var(--muted);"></span></div>
+          <div style="font-size:10px;color:var(--muted);margin:-4px 0 8px;">Aquí es donde se nota la ganancia perdida — unidad disponible pero sin cliente asignado</div>
+          <div id="rep-idle"></div>
+        </div>
+      </div>
+      <div style="margin-top:16px;">
+        <div class="admin-card">
+          <div class="admin-card-title" style="display:flex;justify-content:space-between;align-items:center;">UNIDADES PARADAS (PAROS / MANTENIMIENTO) <span id="rep-paros-count" style="font-size:10px;color:var(--muted);"></span></div>
+          <div id="rep-paros"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal genérico de detalle para Reportes -->
+    <div id="rep-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(10,31,68,0.5);z-index:200;align-items:center;justify-content:center;">
+      <div style="background:#fff;border-radius:10px;max-width:700px;width:92vw;max-height:80vh;overflow-y:auto;padding:20px 24px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div id="rep-modal-title" style="font-family:'Oswald',sans-serif;font-size:16px;color:var(--navy);letter-spacing:1px;"></div>
+          <button onclick="document.getElementById('rep-modal-overlay').style.display='none';" style="background:none;border:1px solid var(--border);color:var(--muted);padding:3px 9px;border-radius:4px;cursor:pointer;">✕</button>
+        </div>
+        <div id="rep-modal-body"></div>
+      </div>
+    </div>
+
+    <!-- FINANZAS -->
+    <div class="view" id="view-finanzas">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div class="section-lbl" style="margin:0;color:var(--green);">FINANZAS — ACCESO RESTRINGIDO</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <select id="fin-periodo" onchange="renderFinanzas()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;outline:none;background:#f8f9fb;font-family:'DM Sans',sans-serif;font-weight:700;">
+            <option value="7">Esta semana</option>
+            <option value="30" selected>Este mes</option>
+            <option value="90">Últimos 3 meses</option>
+            <option value="all">Todo el historial</option>
+          </select>
+        </div>
+      </div>
+      <div id="fin-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="admin-card"><div class="admin-card-title">INGRESOS POR CAMIÓN</div><div id="fin-camion"></div></div>
+        <div class="admin-card"><div class="admin-card-title">INGRESOS POR CLIENTE</div><div id="fin-cliente"></div></div>
+      </div>
+      <div style="margin-top:16px;">
+        <div class="admin-card"><div class="admin-card-title">INGRESOS SEMANA VS MES</div><div id="fin-semanal"></div></div>
       </div>
     </div>
 
@@ -740,6 +806,7 @@ input[type="datetime-local"] { font-variant-numeric: tabular-nums; }
 
   <div class="ticker"><span class="ticker-inner" id="ticker-txt">Cargando...</span></div>
 </div>
+
 
 <script>
 
@@ -791,30 +858,52 @@ function checkAlertas(){
 }
 
 // ── REPORTES ──
-function renderReportes(){
+function getUnitOficina(unitId){
+  var u = units.find(function(x){ return x.id===unitId; });
+  return u ? u.oficina : '';
+}
+function getRepFiltrados(){
   var periodo = document.getElementById('rep-periodo');
-  var dias = periodo ? parseInt(periodo.value) || 99999 : 30;
-  var cutoff = Date.now() - (dias * 86400000);
-  var data = tripHistory.filter(function(t){
-    if(dias === 99999) return true;
-    var d = new Date(t.fechaRegistro || '2020-01-01');
-    return d.getTime() > cutoff;
+  var dias = periodo ? (periodo.value==='all' ? null : parseInt(periodo.value)) : 30;
+  var cutoff = dias ? Date.now() - (dias*86400000) : null;
+  var oficina = (document.getElementById('rep-oficina')||{}).value || '';
+  var cliFiltro = ((document.getElementById('rep-cliente')||{}).value || '').toLowerCase().trim();
+  var uniFiltro = ((document.getElementById('rep-unidad')||{}).value || '').toLowerCase().trim();
+  return tripHistory.filter(function(t){
+    if(cutoff){ var d = new Date(t.fechaRegistro || '2020-01-01'); if(d.getTime() <= cutoff) return false; }
+    if(oficina && getUnitOficina(t.unitId) !== oficina) return false;
+    if(cliFiltro && !(t.cliente||'').toLowerCase().includes(cliFiltro)) return false;
+    if(uniFiltro && !(t.unitId||'').toLowerCase().includes(uniFiltro)) return false;
+    return true;
   });
-  var active = units.filter(function(u){ return u.cliente; });
+}
+function renderReportes(){
+  var data = getRepFiltrados();
+  var oficina = (document.getElementById('rep-oficina')||{}).value || '';
+  var cliFiltro = ((document.getElementById('rep-cliente')||{}).value || '').toLowerCase().trim();
+  var uniFiltro = ((document.getElementById('rep-unidad')||{}).value || '').toLowerCase().trim();
+  var active = units.filter(function(u){
+    if(!u.cliente) return false;
+    if(oficina && u.oficina !== oficina) return false;
+    if(cliFiltro && !(u.cliente||'').toLowerCase().includes(cliFiltro)) return false;
+    if(uniFiltro && !(u.id||'').toLowerCase().includes(uniFiltro)) return false;
+    return true;
+  });
   var allTrips = data.concat(active.map(function(u){ return {cliente:u.cliente,unitId:u.id,tipo:u.tipo,etapa:u.etapa,status:u.status}; }));
 
-  // KPIs
+  // ── KPIs de puntualidad real (solo viajes finalizados y ya juzgados) ──
+  var juzgadosDesc = data.filter(function(t){ return t.descargoATiempo !== null && t.descargoATiempo !== undefined; });
+  var descATiempo = juzgadosDesc.filter(function(t){ return t.descargoATiempo; }).length;
+  var descRetraso = juzgadosDesc.length - descATiempo;
   var total = allTrips.length;
-  var aTiempo = units.filter(function(u){ return u.status==='ontime'; }).length;
   var enRuta = units.filter(function(u){ return u.etapa==='transito'; }).length;
-  var retrasados = units.filter(function(u){ return u.status==='delay'; }).length;
   var kpis = document.getElementById('rep-kpis');
   if(kpis){
     kpis.innerHTML = [
       {label:'Total viajes',val:total,color:'var(--navy)'},
-      {label:'A tiempo',val:aTiempo,color:'var(--green)'},
+      {label:'Descarga a tiempo',val:descATiempo,color:'var(--green)'},
       {label:'En ruta ahora',val:enRuta,color:'var(--blue)'},
-      {label:'Con retraso',val:retrasados,color:'var(--red)'},
+      {label:'Descarga con retraso',val:descRetraso,color:'var(--red)'},
     ].map(function(k){
       return '<div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;">'+
         '<div style="font-size:28px;font-weight:700;color:'+k.color+';font-family:Oswald,sans-serif;">'+k.val+'</div>'+
@@ -856,25 +945,85 @@ function renderReportes(){
     }).join('') : '<div class="empty-msg">Sin datos aún</div>';
   }
 
-  // Puntualidad
-  var enT = units.filter(function(u){return u.status==='ontime';}).length;
-  var ret = units.filter(function(u){return u.status==='delay';}).length;
-  var rsk = units.filter(function(u){return u.status==='risk';}).length;
-  var pEl = document.getElementById('rep-puntualidad');
-  if(pEl && (enT+ret+rsk)>0){
-    var tot2 = enT+ret+rsk;
-    pEl.innerHTML = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;">'+
-      mkBar('A tiempo',enT,tot2,'var(--green)')+
-      mkBar('En riesgo',rsk,tot2,'var(--orange)')+
-      mkBar('Retraso',ret,tot2,'var(--red)')+
-    '</div>';
-  } else if(pEl){
-    pEl.innerHTML = '<div class="empty-msg">Sin datos aún</div>';
+  // Puntualidad real de CARGA
+  var juzgadosCarga = data.filter(function(t){ return t.cargoATiempo !== null && t.cargoATiempo !== undefined; });
+  var cargaOk = juzgadosCarga.filter(function(t){ return t.cargoATiempo; }).length;
+  var pCargaEl = document.getElementById('rep-punt-carga');
+  if(pCargaEl){
+    if(juzgadosCarga.length){
+      pCargaEl.innerHTML = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;">'+
+        mkBar('A tiempo',cargaOk,juzgadosCarga.length,'var(--green)')+
+        mkBar('Retraso',juzgadosCarga.length-cargaOk,juzgadosCarga.length,'var(--red)')+
+      '</div>';
+    } else pCargaEl.innerHTML = '<div class="empty-msg">Sin viajes con hora de carga registrada aún</div>';
+  }
+  // Puntualidad real de DESCARGA
+  var pDescEl = document.getElementById('rep-punt-descarga');
+  if(pDescEl){
+    if(juzgadosDesc.length){
+      pDescEl.innerHTML = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;">'+
+        mkBar('A tiempo',descATiempo,juzgadosDesc.length,'var(--green)')+
+        mkBar('Retraso',descRetraso,juzgadosDesc.length,'var(--red)')+
+      '</div>';
+    } else pDescEl.innerHTML = '<div class="empty-msg">Sin viajes con hora de descarga registrada aún</div>';
+  }
+
+  // ── UNIDADES PARADAS EN BASE SIN VIAJE (donde se pierde ganancia) ──
+  var idleUnits = units.filter(function(u){
+    if(oficina && u.oficina !== oficina) return false;
+    if(uniFiltro && !(u.id||'').toLowerCase().includes(uniFiltro)) return false;
+    return u.enBaseSinViajeDesde;
+  }).sort(function(a,b){ return a.enBaseSinViajeDesde-b.enBaseSinViajeDesde; });
+  var icEl = document.getElementById('rep-idle-count');
+  if(icEl) icEl.textContent = idleUnits.length ? (idleUnits.length+' unidad(es) sin generar ingreso ahora mismo') : 'Todas las unidades disponibles están asignadas';
+  var idleEl = document.getElementById('rep-idle');
+  if(idleEl){
+    idleEl.innerHTML = idleUnits.length ? '<table style="width:100%;border-collapse:collapse;font-size:12px;">'+
+      '<tr style="text-align:left;color:var(--muted);font-size:10px;letter-spacing:1px;text-transform:uppercase;"><th style="padding:6px 4px;">Unidad</th><th>Base</th><th>Parada desde</th><th>Tiempo parado</th></tr>'+
+      idleUnits.map(function(u){
+        var durMs = Date.now()-u.enBaseSinViajeDesde;
+        var dias = Math.floor(durMs/86400000), horas = Math.floor((durMs%86400000)/3600000);
+        var durTxt = (dias>0? dias+'d ':'')+horas+'h';
+        var urgente = durMs > 86400000; // más de 1 día parada
+        return '<tr style="border-top:1px solid var(--bg);">'+
+          '<td style="padding:6px 4px;font-weight:700;color:var(--navy);">'+u.id+'</td>'+
+          '<td>'+(u.gpsEnBase||u.oficina)+'</td>'+
+          '<td style="color:var(--muted);">'+new Date(u.enBaseSinViajeDesde).toLocaleDateString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+'</td>'+
+          '<td style="font-weight:700;color:'+(urgente?'var(--red)':'var(--navy)')+';">'+durTxt+(urgente?' ⚠':'')+'</td>'+
+        '</tr>';
+      }).join('')+'</table>' : '<div class="empty-msg">Ninguna unidad parada en base sin viaje en este momento</div>';
+  }
+
+  // ── PAROS (unidades detenidas) ──
+  var parosFiltrados = paros.filter(function(p){
+    if(oficina && getUnitOficina(p.unitId) !== oficina) return false;
+    if(uniFiltro && !(p.unitId||'').toLowerCase().includes(uniFiltro)) return false;
+    return true;
+  }).sort(function(a,b){ return b.inicio-a.inicio; });
+  var abiertos = parosFiltrados.filter(function(p){ return !p.fin; }).length;
+  var cEl = document.getElementById('rep-paros-count');
+  if(cEl) cEl.textContent = abiertos ? (abiertos+' parada(s) ahora mismo') : 'Ninguna unidad parada actualmente';
+  var pzEl = document.getElementById('rep-paros');
+  if(pzEl){
+    pzEl.innerHTML = parosFiltrados.length ? '<table style="width:100%;border-collapse:collapse;font-size:12px;">'+
+      '<tr style="text-align:left;color:var(--muted);font-size:10px;letter-spacing:1px;text-transform:uppercase;"><th style="padding:6px 4px;">Unidad</th><th>Motivo</th><th>Desde</th><th>Hasta</th><th>Duración</th></tr>'+
+      parosFiltrados.slice(0,50).map(function(p){
+        var durMs = (p.fin||Date.now()) - p.inicio;
+        var dias = Math.floor(durMs/86400000), horas = Math.floor((durMs%86400000)/3600000);
+        var durTxt = (dias>0? dias+'d ':'')+horas+'h';
+        return '<tr style="border-top:1px solid var(--bg);">'+
+          '<td style="padding:6px 4px;font-weight:700;color:var(--navy);">'+p.unitId+'</td>'+
+          '<td style="color:var(--text);">'+(p.motivo||'—')+'</td>'+
+          '<td style="color:var(--muted);">'+new Date(p.inicio).toLocaleDateString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+'</td>'+
+          '<td style="color:var(--muted);">'+(p.fin ? new Date(p.fin).toLocaleDateString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '<span style="color:var(--red);font-weight:700;">EN CURSO</span>')+'</td>'+
+          '<td style="font-weight:700;color:'+(p.fin?'var(--navy)':'var(--red)')+';">'+durTxt+'</td>'+
+        '</tr>';
+      }).join('') + '</table>' : '<div class="empty-msg">Sin paros registrados en este periodo</div>';
   }
 }
 
 function mkBar(label,val,tot,color){
-  var pct = Math.round(val/tot*100);
+  var pct = tot ? Math.round(val/tot*100) : 0;
   return '<div style="flex:1;min-width:120px;text-align:center;">'+
     '<div style="font-size:22px;font-weight:700;color:'+color+';font-family:Oswald,sans-serif;">'+pct+'%</div>'+
     '<div style="font-size:11px;color:var(--muted);">'+label+' ('+val+')</div>'+
@@ -882,20 +1031,131 @@ function mkBar(label,val,tot,color){
   '</div>';
 }
 
+// ── DRILL-DOWN de puntualidad: ver la lista de viajes detrás del % ──
+function verDetallePuntualidad(tipo){
+  var data = getRepFiltrados();
+  var campoOk = tipo==='carga' ? 'cargoATiempo' : 'descargoATiempo';
+  var campoMin = tipo==='carga' ? 'minDifCarga' : 'minDifDescarga';
+  var lista = data.filter(function(t){ return t[campoOk] !== null && t[campoOk] !== undefined; })
+                   .sort(function(a,b){ return (b[campoMin]||0)-(a[campoMin]||0); });
+  var title = document.getElementById('rep-modal-title');
+  var body = document.getElementById('rep-modal-body');
+  title.textContent = 'Detalle de puntualidad — ' + (tipo==='carga' ? 'Carga' : 'Descarga');
+  body.innerHTML = lista.length ? '<table style="width:100%;border-collapse:collapse;font-size:12px;">'+
+    '<tr style="text-align:left;color:var(--muted);font-size:10px;letter-spacing:1px;text-transform:uppercase;"><th style="padding:6px 4px;">Unidad</th><th>Cliente</th><th>Fecha</th><th>Resultado</th><th>Diferencia</th></tr>'+
+    lista.map(function(t){
+      var ok = t[campoOk];
+      var min = t[campoMin];
+      var minTxt = (min===null||min===undefined) ? '—' : (min<=0 ? (Math.abs(min)+' min antes') : (min+' min tarde'));
+      return '<tr style="border-top:1px solid var(--bg);">'+
+        '<td style="padding:6px 4px;font-weight:700;color:var(--navy);">'+t.unitId+'</td>'+
+        '<td>'+(t.cliente||'—')+'</td>'+
+        '<td style="color:var(--muted);">'+(t.fechaRegistro||'—')+'</td>'+
+        '<td style="font-weight:700;color:'+(ok?'var(--green)':'var(--red)')+';">'+(ok?'A tiempo':'Retraso')+'</td>'+
+        '<td style="color:var(--muted);">'+minTxt+'</td>'+
+      '</tr>';
+    }).join('')+'</table>' : '<div class="empty-msg">Sin viajes con este dato registrado en el periodo filtrado</div>';
+  document.getElementById('rep-modal-overlay').style.display = 'flex';
+}
+
 // ── EXPORT TO EXCEL (CSV) ──
 function exportarExcel(){
-  var rows = [['Unidad','Tipo','Oficina','Cliente','Origen','Destino','Salida','Cita','Etapa','Estado','Tipo Carga','Operador','Fecha']];
+  var verCosto = puedeVerFinanzas();
+  var headers = ['Unidad','Tipo','Oficina','Cliente','Origen','Destino','Salida','Cita','Etapa','Estado','Tipo Carga','Operador','Fecha','Cargó a tiempo','Descargó a tiempo'];
+  if(verCosto) headers.push('Costo');
+  var rows = [headers];
   tripHistory.forEach(function(t){
-    rows.push([t.unitId,t.tipo,t.oficina||'',t.cliente||'',t.origen||'',t.destino||'',t.salida||'',t.eta||'',t.etapa||'',t.status||'',t.temp||'',t.operador||'',t.fechaRegistro||'']);
+    var row = [t.unitId,t.tipo,getUnitOficina(t.unitId)||'',t.cliente||'',t.origen||'',t.destino||'',t.salida||'',t.eta||'',t.etapa||'',t.status||'',t.temp||'',t.operador||'',t.fechaRegistro||'',
+      (t.cargoATiempo===true?'Sí':t.cargoATiempo===false?'No':'—'), (t.descargoATiempo===true?'Sí':t.descargoATiempo===false?'No':'—')];
+    if(verCosto) row.push(t.costo||'');
+    rows.push(row);
   });
   units.forEach(function(u){
-    if(u.cliente) rows.push([unitLabel(u),u.tipo,u.oficina,u.cliente,u.origen||'',u.destino||'','',u.eta||'',u.etapa||'',SL[u.status]||'',u.temp||'',u.operador||'','Activo']);
+    if(u.cliente){
+      var row = [unitLabel(u),u.tipo,u.oficina,u.cliente,u.origen||'',u.destino||'','',u.eta||'',u.etapa||'',SL[u.status]||'',u.temp||'',u.operador||'','Activo','—','—'];
+      if(verCosto) row.push(u.costo||'');
+      rows.push(row);
+    }
   });
-  var csv = rows.map(function(r){ return r.map(function(c){ return '"'+(c||'').replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+  var csv = rows.map(function(r){ return r.map(function(c){ return '"'+String(c||'').replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
   var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a'); a.href=url; a.download='RGT_Viajes_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
   URL.revokeObjectURL(url);
+}
+
+// ── FINANZAS (solo usuarios con permiso verFinanzas) ──
+function renderFinanzas(){
+  if(!puedeVerFinanzas()) return;
+  var periodo = document.getElementById('fin-periodo');
+  var dias = periodo ? (periodo.value==='all' ? null : parseInt(periodo.value)) : 30;
+  var cutoff = dias ? Date.now() - (dias*86400000) : null;
+  function toNumero(costo){
+    if(!costo) return 0;
+    var n = parseFloat(String(costo).replace(/[^0-9.]/g,''));
+    return isNaN(n) ? 0 : n;
+  }
+  var data = tripHistory.filter(function(t){
+    if(!cutoff) return true;
+    var d = new Date(t.fechaRegistro || '2020-01-01');
+    return d.getTime() > cutoff;
+  });
+  var totalIngresos = data.reduce(function(s,t){ return s+toNumero(t.costo); },0);
+  var totalViajesConCosto = data.filter(function(t){ return toNumero(t.costo)>0; }).length;
+  var promedio = totalViajesConCosto ? totalIngresos/totalViajesConCosto : 0;
+  var kpis = document.getElementById('fin-kpis');
+  if(kpis){
+    kpis.innerHTML = [
+      {label:'Ingresos totales',val:'$'+Math.round(totalIngresos).toLocaleString('es-MX'),color:'var(--green)'},
+      {label:'Viajes facturados',val:totalViajesConCosto,color:'var(--navy)'},
+      {label:'Ticket promedio',val:'$'+Math.round(promedio).toLocaleString('es-MX'),color:'var(--blue)'},
+    ].map(function(k){
+      return '<div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;">'+
+        '<div style="font-size:24px;font-weight:700;color:'+k.color+';font-family:Oswald,sans-serif;">'+k.val+'</div>'+
+        '<div style="font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:4px;">'+k.label+'</div>'+
+      '</div>';
+    }).join('');
+  }
+  // Por camión
+  var byCamion = {};
+  data.forEach(function(t){ if(t.unitId){ byCamion[t.unitId] = (byCamion[t.unitId]||0)+toNumero(t.costo); } });
+  var rowsCam = Object.entries(byCamion).filter(function(r){return r[1]>0;}).sort(function(a,b){return b[1]-a[1];}).slice(0,15);
+  var elCam = document.getElementById('fin-camion');
+  if(elCam) elCam.innerHTML = rowsCam.length ? rowsCam.map(function(r){
+    return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--bg);"><span style="font-weight:700;color:var(--navy);font-size:12px;">'+r[0]+'</span><span style="font-weight:700;color:var(--green);font-size:12px;">$'+Math.round(r[1]).toLocaleString('es-MX')+'</span></div>';
+  }).join('') : '<div class="empty-msg">Sin datos aún</div>';
+  // Por cliente
+  var byCli = {};
+  data.forEach(function(t){ if(t.cliente){ byCli[t.cliente] = (byCli[t.cliente]||0)+toNumero(t.costo); } });
+  var rowsCli = Object.entries(byCli).filter(function(r){return r[1]>0;}).sort(function(a,b){return b[1]-a[1];}).slice(0,15);
+  var elCli = document.getElementById('fin-cliente');
+  if(elCli) elCli.innerHTML = rowsCli.length ? rowsCli.map(function(r){
+    var col = getClientColor(r[0]);
+    return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--bg);"><span style="font-weight:700;color:'+col+';font-size:12px;">'+r[0]+'</span><span style="font-weight:700;color:var(--green);font-size:12px;">$'+Math.round(r[1]).toLocaleString('es-MX')+'</span></div>';
+  }).join('') : '<div class="empty-msg">Sin datos aún</div>';
+  // Semanal vs mensual (últimas 8 semanas)
+  var semanas = {};
+  data.forEach(function(t){
+    var d = new Date(t.fechaRegistro || '2020-01-01');
+    var year = d.getFullYear();
+    var firstJan = new Date(year,0,1);
+    var week = Math.ceil((((d-firstJan)/86400000)+firstJan.getDay()+1)/7);
+    var key = year+'-S'+week;
+    semanas[key] = (semanas[key]||0)+toNumero(t.costo);
+  });
+  var semRows = Object.entries(semanas).sort(function(a,b){ return a[0]<b[0]?1:-1; }).slice(0,8);
+  var elSem = document.getElementById('fin-semanal');
+  if(elSem){
+    var maxSem = Math.max.apply(null, semRows.map(function(r){return r[1];}).concat([1]));
+    elSem.innerHTML = semRows.length ? semRows.map(function(r){
+      var pct = Math.round(r[1]/maxSem*100);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;">'+
+        '<span style="width:70px;font-size:11px;color:var(--muted);">'+r[0]+'</span>'+
+        '<div style="flex:1;height:10px;background:var(--bg);border-radius:4px;overflow:hidden;"><div style="width:'+pct+'%;height:100%;background:var(--green);"></div></div>'+
+        '<span style="width:90px;text-align:right;font-size:12px;font-weight:700;color:var(--navy);">$'+Math.round(r[1]).toLocaleString('es-MX')+'</span>'+
+      '</div>';
+    }).join('') : '<div class="empty-msg">Sin datos aún</div>';
+  }
 }
 
 // ── SELECTOR HELPERS ──
@@ -1043,7 +1303,7 @@ function borrarViaje(){
   saveAll();
   renderBoard(); renderStats(); renderTicker(); renderDisponiblesCounter();
   var t=document.getElementById('toast-edit');
-  if(t){ t.textContent='🗑 Viaje eliminado'; t.style.display='block'; setTimeout(function(){ t.style.display='none'; t.textContent='✓ Cambios guardados'; },2500); }
+  if(t){ t.textContent='Viaje eliminado'; t.style.display='block'; setTimeout(function(){ t.style.display='none'; t.textContent='✓ Cambios guardados'; },2500); }
   var tblBtn = document.querySelector('[onclick*=\'tablero\']');
   if(tblBtn) showView('tablero', tblBtn);
 }
@@ -1093,19 +1353,37 @@ function getNextTrip(unitId){
   return prog[0];
 }
 
+// ── PUNTUALIDAD REAL ──
+// Compara la hora real de carga/descarga (capturada por el GPS o manualmente) contra la cita.
+// Tolerancia de 30 min de gracia. Devuelve null si no hay suficiente info para juzgar.
+var TOLERANCIA_MIN = 30;
+function calcPuntualidad(citaISO, horaRealTs){
+  if(!citaISO || !horaRealTs) return {ok:null, minDif:null};
+  var citaMs = new Date(citaISO).getTime();
+  if(!citaMs) return {ok:null, minDif:null};
+  var minDif = Math.round((horaRealTs - citaMs) / 60000); // positivo = tarde
+  return {ok: minDif <= TOLERANCIA_MIN, minDif: minDif};
+}
+
 function finalizarViaje(tripId){
   var t = trips.find(function(x){ return x.tripId === tripId; });
   if(!t) return;
   if(!confirm('¿Finalizar el viaje de la unidad ' + t.unitId + ' — ' + t.cliente + '?')) return;
   t.status = 'finalizado';
   t.fechaFin = new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  if(!t.horaDescargaReal) t.horaDescargaReal = Date.now(); // si se finalizó manual sin pasar por "arribo"
+  var pCarga = calcPuntualidad(t.citaCarga, t.horaCargaReal);
+  var pDesc  = calcPuntualidad(t.citaDescarga, t.horaDescargaReal);
   // Archive to history
   tripHistory.unshift({
     unitId:t.unitId, tipo:t.tipo, origen:t.origen, destino:t.destino,
     cliente:t.cliente, etapa:t.etapa, operador:t.operador,
     eta:t.citaDescarga||'', salida:t.citaCarga||'',
     costo:t.costo, cartaporte:t.cartaporte, nota:t.obs||'',
-    fechaRegistro:t.fechaFin
+    fechaRegistro:t.fechaFin,
+    horaCargaReal:t.horaCargaReal||null, horaDescargaReal:t.horaDescargaReal||null,
+    cargoATiempo:pCarga.ok, minDifCarga:pCarga.minDif,
+    descargoATiempo:pDesc.ok, minDifDescarga:pDesc.minDif
   });
   // Also update unit GPS data
   var u = units.find(function(x){ return x.id === t.unitId; });
@@ -1320,6 +1598,7 @@ function fetchGpsData(){
             activeTrip.etapa = 'transito';
             u.etapa = 'transito';
             u.gpsMotorOffAt = null;
+            if(!activeTrip.horaCargaReal) activeTrip.horaCargaReal = Date.now();
             bitacora.unshift({id:uid,de:prevEtapa,a:'transito',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:(vel>15?'GPS: en movimiento '+Math.round(vel)+'km/h':(movedSinceLastCheck?'GPS: cambio de posición detectado':'GPS: '+Math.round(distFromOrig)+'km del origen')),user:'GPS'});
             saveAll();
           }
@@ -1341,6 +1620,7 @@ function fetchGpsData(){
               if(Date.now() - u.gpsParadoDescDesde >= 20*60000){
                 activeTrip.etapa = 'arribo'; u.etapa = 'arribo';
                 u.gpsParadoDescDesde = null; u.gpsMotorOffAt = null;
+                if(!activeTrip.horaDescargaReal) activeTrip.horaDescargaReal = Date.now();
                 bitacora.unshift({id:uid,de:'transito',a:'arribo',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'GPS: parado 20min en ventana de cita de descarga',user:'GPS'});
                 saveAll();
               }
@@ -1361,6 +1641,7 @@ function fetchGpsData(){
               if(!u.gpsMotorOffAt){ u.gpsMotorOffAt = Date.now(); }
               else if(Date.now()-u.gpsMotorOffAt >= 1200000){
                 activeTrip.etapa = 'arribo'; u.etapa = 'arribo'; u.gpsMotorOffAt = null;
+                if(!activeTrip.horaDescargaReal) activeTrip.horaDescargaReal = Date.now();
                 bitacora.unshift({id:uid,de:'transito',a:'arribo',hora:new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),nota:'GPS: 20min apagado cerca del destino',user:'GPS'});
                 saveAll();
               }
@@ -1371,6 +1652,13 @@ function fetchGpsData(){
       } // end if activeTrip
       u.gpsMotor = motor; u.gpsVel = vel; u.gpsLat = lat; u.gpsLng = lng;
       u.gpsEnBase = baseDetectada ? baseDetectada.nombre : null;
+      // ── Tiempo parado en base SIN viaje asignado — aquí es donde se pierde ganancia ──
+      var tieneViajeActivo = !!(getActiveTrip(uid) || u.cliente);
+      if(baseDetectada && !tieneViajeActivo){
+        if(!u.enBaseSinViajeDesde) u.enBaseSinViajeDesde = Date.now();
+      } else {
+        u.enBaseSinViajeDesde = null;
+      }
       if(lat && lng){
         u.gpsLoc = getApproxLocation(lat,lng);
         var at3=getActiveTrip(uid); if(at3){at3.gpsLat=lat;at3.gpsLng=lng;}
@@ -1387,14 +1675,14 @@ function startGps(){
   gpsLogin();
   gpsInterval = setInterval(function(){ if(gpsToken) fetchGpsData(); else gpsLogin(); }, 180000);
   var btn = document.getElementById('btn-gps');
-  if(btn) btn.textContent = '📡 GPS ON';
+  if(btn) btn.textContent = 'GPS ON';
 }
 
 function stopGps(){
   if(gpsInterval){ clearInterval(gpsInterval); gpsInterval = null; }
   gpsToken = null;
   var btn = document.getElementById('btn-gps');
-  if(btn) btn.textContent = '📡 GPS';
+  if(btn) btn.textContent = 'GPS';
 }
 
 function getApproxLocation(lat,lng){
@@ -1488,8 +1776,8 @@ function setTipoViaje(tipo){
     // Restore labels
     var cargaLbl2 = el('cv-salida') && el('cv-salida').previousElementSibling;
     var descLbl2  = el('cv-datetime') && el('cv-datetime').previousElementSibling;
-    if(cargaLbl2 && cargaLbl2.tagName==='LABEL') cargaLbl2.textContent = 'Cita de carga ⬆';
-    if(descLbl2  && descLbl2.tagName==='LABEL')  descLbl2.textContent  = 'Cita de descarga 🕐';
+    if(cargaLbl2 && cargaLbl2.tagName==='LABEL') cargaLbl2.textContent = 'Cita de carga ↑';
+    if(descLbl2  && descLbl2.tagName==='LABEL')  descLbl2.textContent  = 'Cita de descarga ↓';
   }
   if(el('cv-paradas-lbl')) el('cv-paradas-lbl').textContent = tipo==='repartos'?'ENTREGAS':'CIUDADES / PARADAS';
 }
@@ -1505,7 +1793,7 @@ function addParada(){
   div.innerHTML = '<div><div style="font-size:10px;color:var(--muted);margin-bottom:3px;">'+lbl+'</div>'+
     '<input class="parada-dest" placeholder="'+ph+'" style="'+s+'"/></div>'+
     '<div><div style="font-size:10px;color:var(--muted);margin-bottom:3px;">CITA DESCARGA</div>'+
-    '<input class="parada-cita" type="datetime-local" step="900" style="'+s+'"/></div>'+
+    '<input class="parada-cita" type="datetime-local" style="'+s+'"/></div>'+
     '<button onclick="this.parentElement.remove()" style="background:none;border:1px solid #e74c3c;color:#e74c3c;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:11px;">x</button>';
   list.appendChild(div);
 }
@@ -1517,6 +1805,7 @@ function completarParada(tripId, idx){
   var allDone = t.paradas.every(function(p){ return p.completada; });
   if(allDone){
     t.etapa = 'arribo';
+    if(!t.horaDescargaReal) t.horaDescargaReal = Date.now();
     var u = units.find(function(x){ return x.id===t.unitId; });
     if(u) u.etapa = 'arribo';
   }
@@ -1750,6 +2039,9 @@ function calAddTrip(){
   // If mant and today, update unit status immediately
   if(isMant && status==='active' && uObj){
     uObj.status='mant'; uObj.etapa='mant'; uObj.mantObs=obs;
+    if(!paros.some(function(p){ return p.unitId===uObj.id && p.fin===null; })){
+      paros.unshift({id:'p'+Date.now(), unitId:uObj.id, inicio:Date.now(), fin:null, motivo:obs||'Sin motivo especificado'});
+    }
   }
   saveAll();renderCalendar();renderBoard();renderStats();
   ['cv-unit-inp','cv-cliente-sel','cv-origen','cv-destino','cv-salida','cv-datetime',
@@ -1806,7 +2098,7 @@ function openUnitModal(idx) {
         var hora = p.citaDescarga ? ' · '+new Date(p.citaDescarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : '';
         return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;margin-bottom:4px;border-radius:5px;background:'+(done?'#f0fdf4':'#f8f9fb')+';border:1px solid '+(done?'#86efac':'var(--border)')+';">'+
           '<div style="display:flex;align-items:center;gap:6px;">'+
-            '<span style="font-size:13px;">'+(done?'✅':'⬜')+'</span>'+
+            '<span style="font-size:13px;">'+(done?'✓':'○')+'</span>'+
             '<div>'+
               '<div style="font-size:12px;font-weight:600;color:'+(done?'#16a34a':'var(--navy)')+';">'+(p.destino||'—')+'</div>'+
               (hora?'<div style="font-size:10px;color:var(--muted);">Cita:'+hora+'</div>':'')+'</div>'+
@@ -1829,7 +2121,7 @@ function openUnitModal(idx) {
     '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Cliente</span><span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:'+ccolor+';display:inline-block;"></span>'+cliente+'</span></div>'+
     '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Operador</span><span style="font-size:13px;">'+(operador||'—')+'</span></div>'+
     '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Carta Porte</span><span style="font-size:13px;font-weight:600;">'+cartaporte+'</span></div>'+
-    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Costo</span><span style="font-size:14px;font-weight:700;color:var(--navy);">'+costo+'</span></div>'+
+    (puedeVerFinanzas() ? '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Costo</span><span style="font-size:14px;font-weight:700;color:var(--navy);">'+costo+'</span></div>' : '')+
     '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Etapa</span><span>'+etapaCell(u)+'</span></div>'+
     (at&&at.obs ? '<div style="padding:8px 0;border-bottom:1px solid var(--bg);"><span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Observaciones</span><div style="font-size:12px;color:#374151;margin-top:4px;line-height:1.4;">'+at.obs+'</div></div>' : '')+
     '</div>'+
@@ -1845,18 +2137,20 @@ document.addEventListener('keydown', function(e){
 });
 
 const USERS = {
-  'juan':       {pass:'juan1234',       name:'Juan',         role:'Acceso Completo', nivel:'admin'},
-  'lizzete':    {pass:'lizzete1234',    name:'Lizzete',      role:'Acceso Completo', nivel:'admin'},
-  'jorge':      {pass:'jorge1234',      name:'Jorge',        role:'Acceso Completo', nivel:'admin'},
-  'monitoreo':  {pass:'monitoreo1234',  name:'Monitoreo',    role:'Acceso Completo', nivel:'admin'},
-  'adrian':     {pass:'adrian1234',     name:'Adrian',       role:'Acceso Completo', nivel:'admin'},
-  'josedelfin': {pass:'josedelfin1234', name:'Jose Delfin',  role:'Acceso Completo', nivel:'admin'},
-  'alexrivera': {pass:'alexrivera1234', name:'Alex Rivera',  role:'Acceso Completo', nivel:'admin'},
-  'gerardo':    {pass:'gerardo1234',    name:'Gerardo',      role:'Acceso Completo', nivel:'admin'},
-  'david':      {pass:'david1234',      name:'David',        role:'Acceso Completo', nivel:'admin'},
-  'rodrigo':    {pass:'rodrigo1234',    name:'Rodrigo',      role:'Acceso Completo', nivel:'admin'},
-  'mau':        {pass:'mau1234',        name:'Mau',          role:'Acceso Completo', nivel:'admin'},
+  'juan':       {pass:'juan1234',       name:'Juan',         role:'Acceso Completo', nivel:'admin', verFinanzas:false},
+  'lizzete':    {pass:'lizzete1234',    name:'Lizzete',      role:'Acceso Completo', nivel:'admin', verFinanzas:false},
+  'jorge':      {pass:'jorge1234',      name:'Jorge',        role:'Acceso Completo', nivel:'admin', verFinanzas:false},
+  'monitoreo':  {pass:'monitoreo1234',  name:'Monitoreo',    role:'Acceso Completo', nivel:'admin', verFinanzas:false},
+  'adrian':     {pass:'adrian1234',     name:'Adrian',       role:'Acceso Completo', nivel:'admin', verFinanzas:false},
+  'josedelfin': {pass:'josedelfin1234', name:'Jose Delfin',  role:'Acceso Completo', nivel:'admin', verFinanzas:false},
+  'alexrivera': {pass:'alexrivera1234', name:'Alex Rivera',  role:'Acceso Completo', nivel:'admin', verFinanzas:false},
+  'gerardo':    {pass:'gerardo1234',    name:'Gerardo',      role:'Acceso Completo', nivel:'admin', verFinanzas:false},
+  'david':      {pass:'david1234',      name:'David',        role:'Acceso Completo', nivel:'admin', verFinanzas:false},
+  'rodrigo':    {pass:'rodrigo1234',    name:'Rodrigo',      role:'Acceso Completo', nivel:'admin', verFinanzas:false},
+  'mau':        {pass:'mau1234',        name:'Mau',          role:'Acceso Completo', nivel:'admin', verFinanzas:true},
 };
+// Helper central de permiso — todo el código consulta esta función, nunca u.nivel directo para dinero.
+function puedeVerFinanzas(){ return !!(currentUser && currentUser.verFinanzas); }
 
 const SL = {ontime:'A tiempo',delay:'Retraso',risk:'En riesgo',mant:'Mantenimiento',load:'Cargando',done:'Entregado'};
 const SC = {ontime:'s-ontime',delay:'s-delay',risk:'s-risk',mant:'s-mant',load:'s-load',done:'s-done'};
@@ -1920,7 +2214,8 @@ let units = [
   {id:'158',tipo:'THM',oficina:'MTY',status:'ontime',origen:'MTY',destino:'',cliente:'WM PERECEDEROS',eta:'',etapa:'cargando',temp:null,tempLimit:null,thermo:true,operador:'',nota:'',mantObs:'',costo:'',cartaporte:'',prog:0}
 ];
 let trips = [];
-let tripHistory = []; // {unitId, tipo, origen, destino, cliente, etapa, salida, llegada, eta, operador, nota, fechaRegistro}
+let tripHistory = []; // {unitId, tipo, origen, destino, cliente, etapa, salida, llegada, eta, operador, nota, fechaRegistro, cargoATiempo, descargoATiempo, minDifCarga, minDifDescarga, costo}
+let paros = []; // {id, unitId, inicio(ts), fin(ts|null), motivo}
 
 function unitLabel(u){ return u.id; }
 function unitDisplay(u){ return u.id; }
@@ -2005,6 +2300,7 @@ function _doSave(){
       window.db.ref('rgt/units').set(sanitizeUndefined(units));
       window.db.ref('rgt/bitacora').set(sanitizeUndefined(bitacora.slice(0,200)));
       window.db.ref('rgt/tripHistory').set(sanitizeUndefined(tripHistory.slice(0,500)));
+      window.db.ref('rgt/paros').set(sanitizeUndefined(paros.slice(0,500)));
       window.db.ref('rgt/clientColors').set(safeClientColors);
       window.db.ref('rgt/standaloneClientes').set(standaloneClientes);
     }
@@ -2021,6 +2317,7 @@ function loadAll(){
     var fbUnits = data.units ? (Array.isArray(data.units) ? data.units : Object.values(data.units)).filter(Boolean) : [];
     var fbBitacora = data.bitacora ? (Array.isArray(data.bitacora) ? data.bitacora : Object.values(data.bitacora)).filter(Boolean) : [];
     var fbTripHistory = data.tripHistory ? (Array.isArray(data.tripHistory) ? data.tripHistory : Object.values(data.tripHistory)).filter(Boolean) : [];
+    var fbParos = data.paros ? (Array.isArray(data.paros) ? data.paros : Object.values(data.paros)).filter(Boolean) : [];
 
     // Quitar unidades vendidas de todos lados, sin importar de donde vengan
     units = units.filter(function(u){ return UNIDADES_VENDIDAS.indexOf(u.id) === -1; });
@@ -2051,6 +2348,7 @@ function loadAll(){
     }
     if(fbBitacora.length) bitacora = fbBitacora;
     if(fbTripHistory.length) tripHistory = fbTripHistory;
+    if(fbParos.length) paros = fbParos;
     if(data.clientColors) clientColors = data.clientColors;
     if(data.standaloneClientes) standaloneClientes = data.standaloneClientes;
     checkTripActivation();
@@ -2065,6 +2363,14 @@ function launchApp(){
   document.getElementById('user-role-disp').textContent = currentUser.role;
   document.querySelectorAll('.admin-only').forEach(b=>{
     if(currentUser.nivel !== 'viewer') b.classList.add('visible');
+    else b.classList.remove('visible');
+  });
+  document.querySelectorAll('.finanzas-only').forEach(b=>{
+    if(puedeVerFinanzas()) b.classList.add('visible');
+    else b.classList.remove('visible');
+  });
+  document.querySelectorAll('.finanzas-field').forEach(b=>{
+    if(puedeVerFinanzas()) b.classList.add('visible');
     else b.classList.remove('visible');
   });
   // Firebase real-time listener handles data loading
@@ -2114,6 +2420,10 @@ function showView(name, btn){
   if(name==='historial') renderHistorial();
   if(name==='disponibles') renderDisponibles();
   if(name==='reportes') renderReportes();
+  if(name==='finanzas'){
+    if(!puedeVerFinanzas()){ showView('tablero', document.querySelector('.navbtn')); return; }
+    renderFinanzas();
+  }
 }
 
 function filterBoard(f,btn){
@@ -2218,7 +2528,7 @@ function renderBoard(){
         var vencida = ahora2 > citaMs3 + ventana2h2;
         var alertColor = vencida ? '#e74c3c' : '#f39c12';
         etaHtml += '<div style="font-size:9px;font-weight:700;color:'+alertColor+';background:'+alertColor+'15;border:1px solid '+alertColor+'66;border-radius:3px;padding:3px 5px;margin-top:3px;line-height:1.4;">'+
-          '⚠ Sistema no ha detectado '+tipoAlerta+'<br>en ventana '+ventanaInicio+' – '+ventanaFin+
+          'Sistema no ha detectado '+tipoAlerta+'<br>en ventana '+ventanaInicio+' – '+ventanaFin+
           '</div>';
       }
     }
@@ -2325,9 +2635,9 @@ function renderBoard(){
     var clienteHtml;
     var cargaTag = '';
     if(at && at.conCarga === false){
-      cargaTag = ' <span style="font-size:9px;background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;border-radius:3px;padding:1px 4px;font-weight:600;">📦 Vacío</span>';
+      cargaTag = ' <span style="font-size:9px;background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;border-radius:3px;padding:1px 4px;font-weight:600;">Vacío</span>';
     } else if(at && at.conCarga === true){
-      cargaTag = ' <span style="font-size:9px;background:#f0fdf4;color:#16a34a;border:1px solid #86efac;border-radius:3px;padding:1px 4px;font-weight:600;">✅ Cargado</span>';
+      cargaTag = ' <span style="font-size:9px;background:#f0fdf4;color:#16a34a;border:1px solid #86efac;border-radius:3px;padding:1px 4px;font-weight:600;">Cargado</span>';
     }
     if(at && at.sinCarga){
       clienteHtml = '<span style="color:#94a3b8;font-style:italic;">'+(at.sincargaTipo||'Sin carga')+'</span>';
@@ -2417,8 +2727,8 @@ function renderTicker(){
   let msg = units.map(u=>{
     const lbl = unitLabel(u);
     const etaLbl = ETAPA_LABEL[u.etapa||'cargando'];
-    if(u.status==='delay') return '⚠ '+lbl+' RETRASO — '+u.destino+' · CITA: '+u.eta;
-    if(u.status==='risk')  return '⚡ '+lbl+' EN RIESGO — '+u.origen+' → '+u.destino;
+    if(u.status==='delay') return lbl+' RETRASO — '+u.destino+' · CITA: '+u.eta;
+    if(u.status==='risk')  return lbl+' EN RIESGO — '+u.origen+' → '+u.destino;
     if(u.status==='ontime') return '◆ '+lbl+' A TIEMPO — '+u.origen+' → '+u.destino+' · '+etaLbl;
     return '◈ '+lbl+' — '+u.origen+' → '+u.destino;
   }).join('          ');
@@ -2473,7 +2783,7 @@ function addParadaEd(paradaData){
   div.innerHTML = '<div><div style="font-size:10px;color:var(--muted);margin-bottom:3px;">'+lbl+'</div>'+
     '<input class="ed-parada-dest" value="'+pDest.replace(/"/g,'&quot;')+'" placeholder="'+ph+'" style="'+s+'"/></div>'+
     '<div><div style="font-size:10px;color:var(--muted);margin-bottom:3px;">CITA DESCARGA</div>'+
-    '<input class="ed-parada-cita" type="datetime-local" step="900" value="'+pCita+'" style="'+s+'"/></div>'+
+    '<input class="ed-parada-cita" type="datetime-local" value="'+pCita+'" style="'+s+'"/></div>'+
     '<button type="button" onclick="this.parentElement.remove()" style="background:none;border:1px solid #e74c3c;color:#e74c3c;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:11px;">x</button>';
   list.appendChild(div);
 }
@@ -2610,10 +2920,18 @@ function guardarCambios(){
   u.status = document.getElementById('ed-status').value;
   if(u.status === 'mant') u.etapa = 'mant';
   var edMantObsSave = document.getElementById('ed-mant-obs');
+  if(u.status === 'mant' && prevStatus !== 'mant'){
+    // Empieza un paro nuevo
+    paros.unshift({id:'p'+Date.now(), unitId:u.id, inicio:Date.now(), fin:null, motivo:(edMantObsSave?edMantObsSave.value:'')||'Sin motivo especificado'});
+  }
   if(u.status === 'mant'){
     if(edMantObsSave) u.mantObs = edMantObsSave.value;
+    var paroAbiertoEdit = paros.find(function(p){ return p.unitId===u.id && p.fin===null; });
+    if(paroAbiertoEdit && edMantObsSave) paroAbiertoEdit.motivo = edMantObsSave.value || paroAbiertoEdit.motivo;
   } else if(prevStatus === 'mant') {
-    // Leaving maintenance — clear the old maintenance note so it doesn't linger
+    // Leaving maintenance — cerrar el paro abierto y limpiar la nota
+    var paroACerrar = paros.find(function(p){ return p.unitId===u.id && p.fin===null; });
+    if(paroACerrar) paroACerrar.fin = Date.now();
     u.mantObs = '';
     u.gpsMotorOffAt = null;
   }
@@ -2787,7 +3105,7 @@ function renderDisponibles(){
       if(u.status==='mant'){
         bg = '#fff5f5';
         content = '<div style="text-align:center;">'+
-          '<div style="font-size:11px;font-weight:700;color:#e74c3c;">🔧 MANT</div>'+
+          '<div style="font-size:11px;font-weight:700;color:#e74c3c;">MANT</div>'+
           (u.mantObs?'<div style="font-size:9px;color:#e74c3c;margin-top:2px;">'+u.mantObs.substring(0,18)+'</div>':'')+
         '</div>';
       } else if(info && info.type==='trip'){
@@ -2808,20 +3126,20 @@ function renderDisponibles(){
             timeH2 = '<div style="font-size:9px;color:#64748b;font-weight:600;">↙ Llega: '+ddLabelSC+'</div>';
           }
           content = '<div style="border-left:3px solid #cbd5e1;padding-left:6px;width:100%;">'+
-            '<div style="font-size:10px;font-weight:700;color:#64748b;">📦 Sin carga</div>'+
+            '<div style="font-size:10px;font-weight:700;color:#64748b;">Sin carga</div>'+
             (t.destino?'<div style="font-size:9px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">→ '+t.destino+'</div>':'')+
             timeH1+timeH2+
           '</div>';
         } else {
           // Con carga: show Carga / Descarga
-          var cargaH = t.citaCarga ? '<div style="font-size:9px;color:#16a34a;font-weight:600;">⬆ '+new Date(t.citaCarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})+'</div>' : '';
+          var cargaH = t.citaCarga ? '<div style="font-size:9px;color:#16a34a;font-weight:600;">↑ '+new Date(t.citaCarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})+'</div>' : '';
           var descH = '';
           if(t.citaDescarga){
             var dd2 = new Date(t.citaDescarga);
             var ddDia = t.citaDescarga.slice(0,10);
             var ddHora = dd2.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
             var ddLabel = ddDia!==dk ? ddHora+' ('+dd2.toLocaleDateString('es-MX',{day:'numeric',month:'short'})+')' : ddHora;
-            descH = '<div style="font-size:9px;color:#dc2626;font-weight:600;">⬇ '+ddLabel+'</div>';
+            descH = '<div style="font-size:9px;color:#dc2626;font-weight:600;">↓ '+ddLabel+'</div>';
           }
           content = '<div style="border-left:3px solid '+cc+';padding-left:6px;width:100%;">'+
             '<div style="font-size:10px;font-weight:700;color:'+cc+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+t.cliente+'</div>'+
@@ -2992,7 +3310,7 @@ function renderCalendar(){
           var isMantBlock = t.tipoViaje === 'mant' || t.cliente === 'MANTENIMIENTO';
           if(isMantBlock){
             grid += '<div class="cal-trip" style="border-left:3px solid #f39c12;background:#fff8e1;" onclick="openCalModal('+tidx+')">';
-            grid += '<div style="font-weight:700;font-size:11px;color:#e67e22;">🔧 MANT</div>';
+            grid += '<div style="font-weight:700;font-size:11px;color:#e67e22;">MANT</div>';
             if(t.obs) grid += '<div style="font-size:9px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+t.obs+'</div>';
             var mantFin = t.citaDescarga ? new Date(t.citaDescarga).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
             if(mantFin) grid += '<div style="font-size:9px;color:#e67e22;font-weight:700;">Fin: '+mantFin+'</div>';
@@ -3102,7 +3420,7 @@ function openCalModal(idx){
     '<div class="cal-modal-row"><span class="cal-modal-lbl">Cita de carga</span><span class="cal-modal-val">'+salidaInfo+'</span></div>'+
     '<div class="cal-modal-row"><span class="cal-modal-lbl">Cita de descarga</span><span class="cal-modal-val" style="color:'+(citaDescargaVal?'var(--blue)':'var(--muted)')+';font-weight:700;font-size:14px;">'+citaInfo+'</span></div>'+
     '<div class="cal-modal-row"><span class="cal-modal-lbl">Carta Porte</span><span class="cal-modal-val" style="font-weight:600;">'+(trip.cartaporte||trip.cartaPorte||'—')+'</span></div>'+
-    '<div class="cal-modal-row"><span class="cal-modal-lbl">Costo</span><span class="cal-modal-val" style="font-weight:700;color:var(--navy);">'+costoFmt+'</span></div>'+
+    (puedeVerFinanzas() ? '<div class="cal-modal-row"><span class="cal-modal-lbl">Costo</span><span class="cal-modal-val" style="font-weight:700;color:var(--navy);">'+costoFmt+'</span></div>' : '')+
     (trip.obs||trip.observaciones ? '<div class="cal-modal-row"><span class="cal-modal-lbl">Observaciones</span><span class="cal-modal-val">'+(trip.obs||trip.observaciones)+'</span></div>' : '')+
     '<div class="cal-modal-row"><span class="cal-modal-lbl">Estado</span><span class="cal-modal-val">'+(statusLabel[trip.status]||'Programado')+'</span></div>';
   // Show edit button only for non-viewers
